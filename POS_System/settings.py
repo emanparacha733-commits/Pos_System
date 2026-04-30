@@ -19,14 +19,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    # Third party
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'colorfield',
-
-    # Our apps
     'authentication',
     'products',
     'inventory',
@@ -96,11 +92,18 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
+    'https://pos-system-kr2h.vercel.app',
     'https://pos-system-kr2h-9qhgmyxhn-emanparacha733-5711s-projects.vercel.app',
     'http://localhost:5173',
     'http://localhost:5174',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://pos-system-kr2h.vercel.app',
+    'https://pos-system-kr2h-9qhgmyxhn-emanparacha733-5711s-projects.vercel.app',
+    'https://possystem-production-5c15.up.railway.app',
 ]
 
 # REST Framework
