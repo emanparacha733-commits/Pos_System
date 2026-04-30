@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'pos',
     'customers',
     'reports',
+    'business',
 ]
 
 MIDDLEWARE = [
