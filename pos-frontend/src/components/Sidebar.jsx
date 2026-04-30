@@ -6,7 +6,8 @@ import {
   MdInventory, 
   MdPeople, 
   MdBarChart,
-  MdLogout
+  MdLogout,
+  MdBusiness  // ✅ ye add karo
 } from 'react-icons/md'
 
 const Sidebar = () => {
@@ -18,6 +19,7 @@ const Sidebar = () => {
     { to: '/inventory', icon: <MdInventory size={20} />, label: 'Inventory' },
     { to: '/customers', icon: <MdPeople size={20} />, label: 'Customers' },
     { to: '/reports', icon: <MdBarChart size={20} />, label: 'Reports' },
+    { to: '/business', icon: <MdBusiness size={20} />, label: 'Business' },  // ✅ ye add karo
   ]
 
   return (
