@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard/Dashboard'
 import POS from './pages/POS/POS'
 import Inventory from './pages/Inventory/Inventory'
 import Customers from './pages/Customers/Customers'
+  import Reports from './pages/Reports/Reports'
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth()
@@ -33,6 +34,13 @@ const App = () => {
           <Route path="/inventory" element={
             <ProtectedRoute><Inventory /></ProtectedRoute>
           } />
+
+        
+
+
+<Route path="/reports" element={
+  <ProtectedRoute><Reports /></ProtectedRoute>
+} />
 
 
             {/* ✅ YAHAN ADD KARO */}
