@@ -3,6 +3,8 @@ import axios from 'axios'
 
 const AuthContext = createContext()
 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -16,7 +18,7 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const login = async (username, password) => {
-    const response = await axios.post('http://127.0.0.1:8000/api/token/', {
+    const response = await axios.post(`${BASE_URL}/token/`, {
       username,
       password,
     })
