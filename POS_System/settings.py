@@ -11,8 +11,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-4-5ux1s%u3$jqmpe&1yx#snj(r
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']  
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com', 'possystem-production-5c15.up.railway.app']
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
