@@ -7,7 +7,8 @@ import Inventory from './pages/Inventory/Inventory'
 import Customers from './pages/Customers/Customers'
 import Reports from './pages/Reports/Reports'
 import BusinessProfile from './pages/Business/BusinessProfile'
-import Users from './pages/Users/Users'   // ← fix: space hata diya, naam bhi Users
+import Users from './pages/Users/Users'   
+       import Store from './pages/Store/Store'
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth()
@@ -43,6 +44,10 @@ const App = () => {
           <Route path="/business" element={
             <ProtectedRoute><BusinessProfile /></ProtectedRoute>
           } />
+
+
+
+<Route path="/store" element={<Store />} />
           <Route path="/users" element={
             <ProtectedRoute><Users /></ProtectedRoute>
           } />
