@@ -8,7 +8,7 @@ import {
 } from 'react-icons/md'
 
 // ─── Receipt Modal ────────────────────────────────────────────────
-const ReceiptModal = ({ order, onClose }) => {
+const ReceiptModal = ({ order, business, onClose }) => {
   const printRef = useRef()
 
   const handlePrint = () => {
@@ -47,8 +47,10 @@ const ReceiptModal = ({ order, onClose }) => {
 
         {/* Receipt Content */}
         <div className="p-4" ref={printRef}>
-          <div className="title">POS System</div>
-          <div className="sub">Business Management</div>
+          <div className="title">{business?.name || 'POS System'}</div>
+          {business?.address && <div className="sub">{business.address}</div>}
+          {business?.phone && <div className="sub">{business.phone}</div>}
+          {business?.email && <div className="sub">{business.email}</div>}
           <div className="divider mt-2" />
 
           <div className="text-xs text-gray-500 mb-2">
@@ -179,6 +181,7 @@ const POS = () => {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [customers, setCustomers] = useState([])
+  const [business, setBusiness] = useState(null)   // ✅ ADD
   const [cart, setCart] = useState([])
   const [heldOrders, setHeldOrders] = useState([])
   const [search, setSearch] = useState('')
@@ -196,6 +199,7 @@ const POS = () => {
     fetchProducts()
     fetchCategories()
     fetchCustomers()
+    fetchBusiness()   // ✅ ADD
   }, [])
 
   const fetchProducts = async () => {
@@ -218,6 +222,16 @@ const POS = () => {
       setCustomers(res.data)
     } catch (err) { console.error(err) }
   }
+
+  // ✅ ADD — fetchBusiness function
+ const fetchBusiness = async () => {
+  try {
+    const res = await API.get('/business/')
+    setBusiness(res.data[0])  // ← [0] lagao, array hai
+  } catch (err) { 
+    console.error('Business fetch error:', err) 
+  }
+}
 
   // ── Filtering ──
   const filteredProducts = products.filter(p => {
@@ -305,7 +319,6 @@ const POS = () => {
         status: 'paid',
       })
 
-      // Show receipt
       setReceipt({
         id: res.data.id || Math.floor(Math.random() * 10000),
         items: cart.map(item => ({ name: item.name, qty: item.qty, price: item.price })),
@@ -325,10 +338,10 @@ const POS = () => {
       setPaymentMethod('cash')
       fetchProducts()
     } catch (err) {
-  const errorData = err.response?.data
-  console.error('ORDER ERROR:', JSON.stringify(errorData, null, 2))
-  alert('Error: ' + JSON.stringify(errorData))
-} finally {
+      const errorData = err.response?.data
+      console.error('ORDER ERROR:', JSON.stringify(errorData, null, 2))
+      alert('Error: ' + JSON.stringify(errorData))
+    } finally {
       setLoading(false)
     }
   }
@@ -353,7 +366,6 @@ const POS = () => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              {/* Held Orders Button */}
               {heldOrders.length > 0 && (
                 <button
                   onClick={() => setShowHeld(true)}
@@ -430,7 +442,6 @@ const POS = () => {
               </div>
               <button onClick={() => setCart([])} className="text-red-500 text-xs hover:text-red-700">Clear</button>
             </div>
-            {/* Customer Select */}
             <CustomerSelect
               customers={customers}
               selectedCustomer={selectedCustomer}
@@ -470,7 +481,6 @@ const POS = () => {
 
           {/* Discount + Tax */}
           <div className="px-4 py-2 border-t space-y-2">
-            {/* Discount */}
             <div>
               <label className="text-xs text-gray-500 font-medium">Discount</label>
               <div className="flex gap-2 mt-1">
@@ -495,7 +505,6 @@ const POS = () => {
                 />
               </div>
             </div>
-            {/* Tax */}
             <div>
               <label className="text-xs text-gray-500 font-medium">Tax Rate (%)</label>
               <input
@@ -548,7 +557,6 @@ const POS = () => {
 
           {/* Action Buttons */}
           <div className="p-4 flex flex-col gap-2">
-            {/* Hold */}
             <button
               onClick={holdOrder}
               disabled={cart.length === 0}
@@ -556,7 +564,6 @@ const POS = () => {
             >
               <MdPause size={16} /> Hold Order
             </button>
-            {/* Checkout */}
             <button
               onClick={handleCheckout}
               disabled={loading || cart.length === 0}
@@ -604,7 +611,7 @@ const POS = () => {
 
       {/* ── Receipt Modal ── */}
       {receipt && (
-        <ReceiptModal order={receipt} onClose={() => setReceipt(null)} />
+        <ReceiptModal order={receipt} business={business} onClose={() => setReceipt(null)} />
       )}
     </Layout>
   )

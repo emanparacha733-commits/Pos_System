@@ -6,7 +6,8 @@ import POS from './pages/POS/POS'
 import Inventory from './pages/Inventory/Inventory'
 import Customers from './pages/Customers/Customers'
 import Reports from './pages/Reports/Reports'
-import BusinessProfile from './pages/Business/BusinessProfile'  
+import BusinessProfile from './pages/Business/BusinessProfile'
+import Users from './pages/Users/Users'   // ← fix: space hata diya, naam bhi Users
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth()
@@ -36,12 +37,15 @@ const App = () => {
           <Route path="/reports" element={
             <ProtectedRoute><Reports /></ProtectedRoute>
           } />
-          <Route path="/Customers" element={
+          <Route path="/customers" element={
             <ProtectedRoute><Customers /></ProtectedRoute>
           } />
-          <Route path="/Business" element={
+          <Route path="/business" element={
             <ProtectedRoute><BusinessProfile /></ProtectedRoute>
-          } />  {/*  */}
+          } />
+          <Route path="/users" element={
+            <ProtectedRoute><Users /></ProtectedRoute>
+          } />
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       </BrowserRouter>
