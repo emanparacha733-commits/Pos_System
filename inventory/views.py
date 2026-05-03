@@ -192,7 +192,11 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         po.status = 'cancelled'
         po.save()
         return Response({'message': 'Purchase order cancelled'})
-
+    
+class WarehouseViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class   = WarehouseSerializer
+    queryset           = Warehouse.objects.filter(is_active=True)
 
 class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -258,3 +262,5 @@ class LowStockNotificationViewSet(viewsets.ReadOnlyModelViewSet):
         notif.resolved_at = timezone.now()
         notif.save()
         return Response({'message': 'Notification resolved'})
+    
+    
