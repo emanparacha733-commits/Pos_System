@@ -1,402 +1,677 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Layout from '../../components/Layout'
 import API from '../../utils/api'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Legend
-} from 'recharts'
-import {
-  MdTrendingUp, MdShoppingBag, MdAttachMoney, MdAdd,
-  MdDelete, MdEdit, MdClose, MdReceipt
+  MdBarChart, MdTrendingUp, MdDownload,
+  MdPictureAsPdf, MdTableChart, MdRefresh, MdCalendarToday,
+  MdInventory, MdPeople, MdShoppingCart, MdReceiptLong,
+  MdArrowUpward, MdArrowDownward, MdStar, MdLocalShipping,
+  MdAccountBalance, MdSearch
 } from 'react-icons/md'
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, AreaChart, Area
+} from 'recharts'
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+// ─── Design Tokens (matching POS blue theme) ──────────────────────
+const BLUE       = '#1a56db'
+const BLUE_DARK  = '#1e429f'
+const BLUE_LIGHT = '#ebf5ff'
+const GRAY_BG    = '#f3f4f6'
+const CHART_COLORS = ['#1a56db', '#f59e0b', '#10b981', '#f43f5e', '#8b5cf6', '#06b6d4']
 
+// ─── Period Options ───────────────────────────────────────────────
 const PERIODS = [
-  { label: '7 Days', days: 7 },
-  { label: '30 Days', days: 30 },
-  { label: '90 Days', days: 90 },
+  { key: 'today',   label: 'Today' },
+  { key: 'week',    label: 'This Week' },
+  { key: 'month',   label: 'This Month' },
+  { key: 'quarter', label: 'Quarter' },
+  { key: 'year',    label: 'This Year' },
+  { key: 'custom',  label: 'Custom' },
 ]
 
-// ─── Expense Modal ─────────────────────────────────────────────────
-const ExpenseModal = ({ editExpense, onClose, onDone }) => {
-  const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({
-    title: editExpense?.title || '',
-    amount: editExpense?.amount || '',
-    category: editExpense?.category || 'other',
-    note: editExpense?.note || '',
-    date: editExpense?.date || new Date().toISOString().split('T')[0],
-  })
+const REPORT_TABS = [
+  { key: 'overview',   label: 'Overview',          icon: MdBarChart,       color: 'blue' },
+  { key: 'sales',      label: 'Sales Trend',        icon: MdTrendingUp,     color: 'green' },
+  { key: 'products',   label: 'Best Sellers',       icon: MdStar,           color: 'yellow' },
+  { key: 'profit',     label: 'Profit Margins',     icon: MdAccountBalance, color: 'purple' },
+  { key: 'suppliers',  label: 'Suppliers',          icon: MdLocalShipping,  color: 'orange' },
+  { key: 'customers',  label: 'Customers',          icon: MdPeople,         color: 'pink' },
+  { key: 'tax',        label: 'Tax Report',         icon: MdReceiptLong,    color: 'red' },
+]
 
-  const f = (key, val) => setForm(prev => ({ ...prev, [key]: val }))
+// Icon bg colors matching POS style
+const ICON_STYLES = {
+  blue:   { bg: '#dbeafe', color: '#1d4ed8' },
+  green:  { bg: '#d1fae5', color: '#065f46' },
+  yellow: { bg: '#fef3c7', color: '#92400e' },
+  purple: { bg: '#ede9fe', color: '#5b21b6' },
+  orange: { bg: '#ffedd5', color: '#9a3412' },
+  pink:   { bg: '#fce7f3', color: '#9d174d' },
+  red:    { bg: '#fee2e2', color: '#991b1b' },
+  teal:   { bg: '#ccfbf1', color: '#134e4a' },
+}
 
-  const handleSubmit = async () => {
-    if (!form.title || !form.amount) return alert('Title and amount required!')
-    setLoading(true)
-    try {
-      if (editExpense) {
-        await API.put(`/reports/expenses/${editExpense.id}/`, form)
-      } else {
-        await API.post('/reports/expenses/', form)
-      }
-      onDone()
-      onClose()
-    } catch (err) {
-      alert('Error saving expense!')
-    } finally {
-      setLoading(false)
-    }
-  }
+// ─── Helpers ──────────────────────────────────────────────────────
+const fmt  = n => `Rs. ${Number(n || 0).toLocaleString('en-PK')}`
+const pct  = n => `${Number(n || 0).toFixed(1)}%`
+const fmtDate = d => new Date(d).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })
 
+const exportCSV = (rows, filename) => {
+  if (!rows?.length) return
+  const keys = Object.keys(rows[0])
+  const csv  = [keys.join(','), ...rows.map(r => keys.map(k => `"${r[k] ?? ''}"`).join(','))].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const a    = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename })
+  a.click(); URL.revokeObjectURL(a.href)
+}
+
+const exportPDF = title => {
+  const win = window.open('', '_blank')
+  win.document.write(`<html><head><title>${title}</title>
+    <style>body{font-family:sans-serif;padding:24px}table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #ddd;padding:8px 12px;text-align:left}th{background:#f3f4f6}</style></head>
+    <body><h2>${title}</h2>${document.getElementById('report-table')?.outerHTML || '<p>No data</p>'}</body></html>`)
+  win.document.close(); win.print()
+}
+
+// ─── Stat Card (POS style) ────────────────────────────────────────
+const StatCard = ({ label, value, sub, delta, icon: Icon, color = 'blue' }) => {
+  const style = ICON_STYLES[color]
+  const up = delta >= 0
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">{editExpense ? 'Edit Expense' : 'Add Expense'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><MdClose size={20} /></button>
+    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>{label}</span>
+        <span style={{ background: style.bg, borderRadius: 10, padding: '8px', display: 'flex', alignItems: 'center' }}>
+          <Icon size={20} style={{ color: style.color }} />
+        </span>
+      </div>
+      <div>
+        <p style={{ fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 }}>{value}</p>
+        {sub && <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 0' }}>{sub}</p>}
+      </div>
+      {delta !== undefined && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: up ? '#059669' : '#dc2626' }}>
+          {up ? <MdArrowUpward size={13} /> : <MdArrowDownward size={13} />}
+          {Math.abs(delta)}% vs last period
         </div>
-        <div className="p-4 space-y-3">
-          <input placeholder="Title *" value={form.title} onChange={e => f('title', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <input placeholder="Amount *" type="number" value={form.amount} onChange={e => f('amount', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <select value={form.category} onChange={e => f('category', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            {['rent','salary','utilities','supplies','marketing','other'].map(c => (
-              <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-            ))}
-          </select>
-          <input type="date" value={form.date} onChange={e => f('date', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <textarea placeholder="Note (optional)" value={form.note} onChange={e => f('note', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} />
-        </div>
-        <div className="flex gap-3 p-4 border-t">
-          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 rounded-xl text-gray-600 text-sm hover:bg-gray-50">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading}
-            className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-            {loading ? 'Saving...' : editExpense ? 'Update' : 'Save'}
-          </button>
-        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Card wrapper ─────────────────────────────────────────────────
+const Card = ({ children, style = {} }) => (
+  <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '20px 24px', ...style }}>
+    {children}
+  </div>
+)
+
+// ─── Section Title ────────────────────────────────────────────────
+const SectionTitle = ({ children, sub }) => (
+  <div style={{ marginBottom: 16 }}>
+    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: 0 }}>{children}</h3>
+    {sub && <p style={{ fontSize: 12, color: '#9ca3af', margin: '3px 0 0' }}>{sub}</p>}
+  </div>
+)
+
+// ─── Custom Tooltip ───────────────────────────────────────────────
+const ChartTip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background: '#1f2937', color: '#fff', fontSize: 12, borderRadius: 8, padding: '8px 12px', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}>
+      <p style={{ fontWeight: 700, color: '#fbbf24', marginBottom: 4 }}>{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color, margin: '2px 0' }}>{p.name}: {typeof p.value === 'number' && p.value > 999 ? fmt(p.value) : p.value}</p>
+      ))}
+    </div>
+  )
+}
+
+// ─── Table Styles ─────────────────────────────────────────────────
+const Th = ({ children, right }) => (
+  <th style={{ padding: '10px 16px', textAlign: right ? 'right' : 'left', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+    {children}
+  </th>
+)
+const Td = ({ children, right, style = {} }) => (
+  <td style={{ padding: '12px 16px', textAlign: right ? 'right' : 'left', fontSize: 13, color: '#374151', borderBottom: '1px solid #f3f4f6', ...style }}>
+    {children}
+  </td>
+)
+
+// ─── Export Buttons ───────────────────────────────────────────────
+const ExportBtn = ({ onClick, icon: Icon, label, primary }) => (
+  <button onClick={onClick} style={{
+    display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
+    borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+    background: primary ? BLUE : '#fff', color: primary ? '#fff' : '#374151',
+    boxShadow: primary ? 'none' : '0 0 0 1px #e5e7eb',
+  }}>
+    <Icon size={14} /> {label}
+  </button>
+)
+
+// ─── Badge ────────────────────────────────────────────────────────
+const Badge = ({ value, good, warn }) => {
+  const bg    = value >= good ? '#d1fae5' : value >= warn ? '#fef3c7' : '#fee2e2'
+  const color = value >= good ? '#065f46' : value >= warn ? '#92400e' : '#991b1b'
+  return <span style={{ background: bg, color, borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>{pct(value)}</span>
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TAB COMPONENTS
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── Overview Tab ─────────────────────────────────────────────────
+const OverviewTab = ({ data }) => {
+  if (!data) return <EmptyState text="Loading overview…" />
+  const salesTrend  = data.sales_trend  || []
+  const categoryMix = data.category_mix || []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+        <StatCard label="Total Revenue"   value={fmt(data.total_revenue)}   delta={data.revenue_delta}  icon={MdTrendingUp}    color="blue" />
+        <StatCard label="Total Orders"    value={data.total_orders}         delta={data.orders_delta}   icon={MdShoppingCart}  color="green" />
+        <StatCard label="Items Sold"      value={data.items_sold}           sub="units"                 icon={MdInventory}     color="yellow" />
+        <StatCard label="Avg Order Value" value={fmt(data.avg_order_value)} delta={data.aov_delta}      icon={MdBarChart}      color="purple" />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+        <Card>
+          <SectionTitle sub="Daily revenue for selected period">Revenue Trend</SectionTitle>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={salesTrend}>
+              <defs>
+                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={BLUE} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={BLUE} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+              <Tooltip content={<ChartTip />} />
+              <Area type="monotone" dataKey="revenue" name="Revenue" stroke={BLUE} fill="url(#revGrad)" strokeWidth={2.5} dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card>
+          <SectionTitle sub="Revenue by category">Category Mix</SectionTitle>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={categoryMix} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }) => `${(percent*100).toFixed(0)}%`} labelLine={false}>
+                {categoryMix.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              </Pie>
+              <Tooltip content={<ChartTip />} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
       </div>
     </div>
   )
 }
 
-// ─── Main Reports Component ────────────────────────────────────────
+// ─── Sales Trend Tab ──────────────────────────────────────────────
+const SalesTrendTab = ({ data }) => {
+  const rows = data?.daily || []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <Card>
+        <SectionTitle sub="Revenue vs Cost of Goods Sold">Revenue vs COGS</SectionTitle>
+        <ResponsiveContainer width="100%" height={270}>
+          <BarChart data={rows}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+            <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+            <Tooltip content={<ChartTip />} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar dataKey="revenue" name="Revenue" fill={BLUE}      radius={[4,4,0,0]} />
+            <Bar dataKey="cogs"    name="COGS"    fill="#f59e0b"   radius={[4,4,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card style={{ padding: 0 }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionTitle>Daily Breakdown</SectionTitle>
+          <ExportBtn onClick={() => exportCSV(rows, 'sales_trend.csv')} icon={MdTableChart} label="Export CSV" />
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }} id="report-table">
+          <thead><tr>
+            <Th>Date</Th><Th right>Orders</Th><Th right>Revenue</Th>
+            <Th right>COGS</Th><Th right>Gross Profit</Th><Th right>Margin</Th>
+          </tr></thead>
+          <tbody>
+            {rows.length === 0
+              ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#d1d5db' }}>No data for this period</td></tr>
+              : rows.map((r, i) => (
+                <tr key={i} style={{ ':hover': { background: '#f9fafb' } }}>
+                  <Td style={{ fontWeight: 600 }}>{r.label}</Td>
+                  <Td right>{r.orders}</Td>
+                  <Td right style={{ fontWeight: 600 }}>{fmt(r.revenue)}</Td>
+                  <Td right style={{ color: '#9ca3af' }}>{fmt(r.cogs)}</Td>
+                  <Td right style={{ color: '#059669', fontWeight: 600 }}>{fmt(r.gross_profit)}</Td>
+                  <Td right><Badge value={r.margin} good={20} warn={10} /></Td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Best Sellers Tab ─────────────────────────────────────────────
+const BestSellersTab = ({ data }) => {
+  const rows = data?.best_sellers || []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <Card>
+        <SectionTitle sub="Top 10 products by revenue">Best Selling Products</SectionTitle>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={rows.slice(0,10)} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+            <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} width={140} />
+            <Tooltip content={<ChartTip />} />
+            <Bar dataKey="revenue" name="Revenue" radius={[0,4,4,0]}>
+              {rows.slice(0,10).map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card style={{ padding: 0 }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionTitle>Product Ranking</SectionTitle>
+          <ExportBtn onClick={() => exportCSV(rows, 'best_sellers.csv')} icon={MdTableChart} label="Export CSV" />
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>
+            <Th>Rank</Th><Th>Product</Th><Th>Category</Th>
+            <Th right>Units Sold</Th><Th right>Revenue</Th><Th right>Profit</Th><Th right>Margin</Th>
+          </tr></thead>
+          <tbody>
+            {rows.length === 0
+              ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#d1d5db' }}>No data</td></tr>
+              : rows.map((r, i) => (
+                <tr key={i}>
+                  <Td>
+                    <span style={{
+                      width: 28, height: 28, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 700,
+                      background: i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : i === 2 ? '#b45309' : '#f3f4f6',
+                      color: i < 3 ? '#fff' : '#6b7280'
+                    }}>{i + 1}</span>
+                  </Td>
+                  <Td style={{ fontWeight: 600 }}>{r.name}</Td>
+                  <Td><span style={{ background: '#f3f4f6', color: '#6b7280', borderRadius: 6, padding: '2px 8px', fontSize: 12 }}>{r.category}</span></Td>
+                  <Td right>{r.units_sold}</Td>
+                  <Td right style={{ fontWeight: 600 }}>{fmt(r.revenue)}</Td>
+                  <Td right style={{ color: '#059669', fontWeight: 600 }}>{fmt(r.profit)}</Td>
+                  <Td right><Badge value={r.margin} good={25} warn={10} /></Td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Profit Tab ───────────────────────────────────────────────────
+const ProfitTab = ({ data }) => {
+  const rows   = data?.profit_by_product || []
+  const sorted = [...rows].sort((a, b) => b.margin - a.margin)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+        <StatCard label="Gross Profit" value={fmt(data?.gross_profit)} icon={MdTrendingUp}     color="green" />
+        <StatCard label="Avg Margin"   value={pct(data?.avg_margin)}   icon={MdBarChart}       color="blue" />
+        <StatCard label="Net Profit"   value={fmt(data?.net_profit)}   icon={MdAccountBalance} color="purple" />
+      </div>
+      <Card>
+        <SectionTitle sub="Margin % per product">Profit Margin Distribution</SectionTitle>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={sorted.slice(0,15)}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af' }} angle={-30} textAnchor="end" height={50} />
+            <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} unit="%" />
+            <Tooltip content={<ChartTip />} />
+            <Bar dataKey="margin" name="Margin %" radius={[4,4,0,0]}>
+              {sorted.slice(0,15).map((r, i) => (
+                <Cell key={i} fill={r.margin >= 25 ? '#10b981' : r.margin >= 10 ? '#f59e0b' : '#f43f5e'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+      <Card style={{ padding: 0 }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionTitle>Margin per Product</SectionTitle>
+          <ExportBtn onClick={() => exportCSV(sorted, 'profit_margins.csv')} icon={MdTableChart} label="Export CSV" />
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>
+            <Th>Product</Th><Th right>Cost Price</Th><Th right>Sell Price</Th>
+            <Th right>Units Sold</Th><Th right>Revenue</Th><Th right>Gross Profit</Th><Th right>Margin %</Th>
+          </tr></thead>
+          <tbody>
+            {sorted.length === 0
+              ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#d1d5db' }}>No data</td></tr>
+              : sorted.map((r, i) => (
+                <tr key={i}>
+                  <Td style={{ fontWeight: 500 }}>{r.name}</Td>
+                  <Td right style={{ color: '#9ca3af' }}>{fmt(r.cost_price)}</Td>
+                  <Td right>{fmt(r.sell_price)}</Td>
+                  <Td right>{r.units_sold}</Td>
+                  <Td right style={{ fontWeight: 600 }}>{fmt(r.revenue)}</Td>
+                  <Td right style={{ color: '#059669', fontWeight: 600 }}>{fmt(r.gross_profit)}</Td>
+                  <Td right><Badge value={r.margin} good={25} warn={10} /></Td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Supplier Tab ─────────────────────────────────────────────────
+const SupplierTab = ({ data }) => {
+  const rows = data?.supplier_purchases || []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <Card>
+        <SectionTitle sub="Total purchased per supplier">Supplier Purchase Volume</SectionTitle>
+        <ResponsiveContainer width="100%" height={230}>
+          <BarChart data={rows}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <XAxis dataKey="supplier" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+            <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+            <Tooltip content={<ChartTip />} />
+            <Bar dataKey="total_amount" name="Total Amount" radius={[4,4,0,0]}>
+              {rows.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+      <Card style={{ padding: 0 }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionTitle>Supplier Wise Detail</SectionTitle>
+          <ExportBtn onClick={() => exportCSV(rows, 'supplier_report.csv')} icon={MdTableChart} label="Export CSV" />
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>
+            <Th>Supplier</Th><Th right>Total Orders</Th><Th right>Items Received</Th>
+            <Th right>Total Amount</Th><Th right>Pending POs</Th><Th>Last Order</Th>
+          </tr></thead>
+          <tbody>
+            {rows.length === 0
+              ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#d1d5db' }}>No supplier data</td></tr>
+              : rows.map((r, i) => (
+                <tr key={i}>
+                  <Td style={{ fontWeight: 600 }}>{r.supplier}</Td>
+                  <Td right>{r.total_orders}</Td>
+                  <Td right>{r.items_received}</Td>
+                  <Td right style={{ fontWeight: 600 }}>{fmt(r.total_amount)}</Td>
+                  <Td right>
+                    <span style={{ background: r.pending_pos > 0 ? '#fef3c7' : '#f3f4f6', color: r.pending_pos > 0 ? '#92400e' : '#9ca3af', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>
+                      {r.pending_pos}
+                    </span>
+                  </Td>
+                  <Td style={{ color: '#9ca3af', fontSize: 12 }}>{r.last_order ? fmtDate(r.last_order) : '—'}</Td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Customer Tab ─────────────────────────────────────────────────
+const CustomerTab = ({ data }) => {
+  const rows = data?.customer_history || []
+  const [search, setSearch] = useState('')
+  const filtered = rows.filter(r => r.customer?.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <MdSearch style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} size={18} />
+          <input
+            placeholder="Search customer…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', paddingLeft: 38, paddingRight: 16, paddingTop: 10, paddingBottom: 10, border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: '#fff' }}
+          />
+        </div>
+        <ExportBtn onClick={() => exportCSV(filtered, 'customer_history.csv')} icon={MdTableChart} label="Export CSV" />
+      </div>
+
+      <Card style={{ padding: 0 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>
+            <Th>Customer</Th><Th right>Total Orders</Th><Th right>Total Spent</Th>
+            <Th right>Avg Order</Th><Th>Last Purchase</Th><Th>Type</Th>
+          </tr></thead>
+          <tbody>
+            {filtered.length === 0
+              ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#d1d5db' }}>No customer data</td></tr>
+              : filtered.map((r, i) => (
+                <tr key={i}>
+                  <Td>
+                    <p style={{ fontWeight: 600, margin: 0 }}>{r.customer || 'Walk-in Customer'}</p>
+                    <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>{r.phone || ''}</p>
+                  </Td>
+                  <Td right>{r.total_orders}</Td>
+                  <Td right style={{ fontWeight: 700 }}>{fmt(r.total_spent)}</Td>
+                  <Td right style={{ color: '#6b7280' }}>{fmt(r.avg_order)}</Td>
+                  <Td style={{ color: '#9ca3af', fontSize: 12 }}>{r.last_purchase ? fmtDate(r.last_purchase) : '—'}</Td>
+                  <Td>
+                    <span style={{
+                      background: r.customer_type === 'wholesale' ? '#ccfbf1' : '#f3f4f6',
+                      color:      r.customer_type === 'wholesale' ? '#134e4a' : '#6b7280',
+                      borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600
+                    }}>
+                      {r.customer_type === 'wholesale' ? 'Wholesale' : 'Retail'}
+                    </span>
+                  </Td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Tax Tab ──────────────────────────────────────────────────────
+const TaxTab = ({ data }) => {
+  const rows = data?.tax_rows || []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+        <StatCard label="Taxable Sales" value={fmt(data?.taxable_sales)} icon={MdReceiptLong}   color="yellow" />
+        <StatCard label="Tax Collected" value={fmt(data?.tax_collected)} icon={MdAccountBalance} color="blue" />
+        <StatCard label="Net After Tax" value={fmt(data?.net_after_tax)} icon={MdTrendingUp}     color="green" />
+      </div>
+      <Card style={{ padding: 0 }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionTitle sub="Monthly tax breakdown">Tax Summary</SectionTitle>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <ExportBtn onClick={() => exportCSV(rows, 'tax_report.csv')} icon={MdTableChart} label="CSV" />
+            <ExportBtn onClick={() => exportPDF('Tax Report')} icon={MdPictureAsPdf} label="PDF" primary />
+          </div>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }} id="report-table">
+          <thead><tr>
+            <Th>Period</Th><Th right>Gross Sales</Th><Th right>Discounts</Th>
+            <Th right>Taxable Amount</Th><Th right>Tax Rate</Th><Th right>Tax Amount</Th><Th right>Net Amount</Th>
+          </tr></thead>
+          <tbody>
+            {rows.length === 0
+              ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#d1d5db' }}>No tax data</td></tr>
+              : rows.map((r, i) => (
+                <tr key={i}>
+                  <Td style={{ fontWeight: 500 }}>{r.period}</Td>
+                  <Td right>{fmt(r.gross_sales)}</Td>
+                  <Td right style={{ color: '#dc2626' }}>{fmt(r.discounts)}</Td>
+                  <Td right>{fmt(r.taxable_amount)}</Td>
+                  <Td right style={{ color: '#6b7280' }}>{pct(r.tax_rate)}</Td>
+                  <Td right style={{ fontWeight: 600, color: '#d97706' }}>{fmt(r.tax_amount)}</Td>
+                  <Td right style={{ fontWeight: 700 }}>{fmt(r.net_amount)}</Td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Empty / Loading ──────────────────────────────────────────────
+const EmptyState = ({ text }) => (
+  <div style={{ textAlign: 'center', padding: '60px 0', color: '#d1d5db', fontSize: 14 }}>{text}</div>
+)
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN REPORTS PAGE
+// ═══════════════════════════════════════════════════════════════════
 const Reports = () => {
-  const [activeTab, setActiveTab] = useState('Sales')
-  const [selectedDays, setSelectedDays] = useState(30)
-  const [salesData, setSalesData] = useState(null)
-  const [profitData, setProfitData] = useState(null)
-  const [topProducts, setTopProducts] = useState([])
-  const [expenses, setExpenses] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [expenseModal, setExpenseModal] = useState(false)
-  const [editExpense, setEditExpense] = useState(null)
+  const [activeTab, setActiveTab]   = useState('overview')
+  const [period, setPeriod]         = useState('month')
+  const [dateFrom, setDateFrom]     = useState('')
+  const [dateTo, setDateTo]         = useState('')
+  const [loading, setLoading]       = useState(false)
+  const [reportData, setReportData] = useState({})
 
-  useEffect(() => {
-    fetchAll()
-  }, [selectedDays])
-
-  const fetchAll = async () => {
+  const fetchReport = useCallback(async (tab = activeTab) => {
     setLoading(true)
     try {
-      await Promise.all([
-        fetchSales(),
-        fetchProfit(),
-        fetchTopProducts(),
-        fetchExpenses(),
-      ])
+      const params = new URLSearchParams({ period })
+      if (period === 'custom' && dateFrom && dateTo) {
+        params.set('date_from', dateFrom)
+        params.set('date_to',   dateTo)
+      }
+      const res = await API.get(`/reports/${tab}/?${params}`)
+      setReportData(prev => ({ ...prev, [tab]: res.data }))
+    } catch (err) {
+      console.error('Report fetch error:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeTab, period, dateFrom, dateTo])
 
-  const fetchSales = async () => {
-    try {
-      const res = await API.get(`/reports/sales/?days=${selectedDays}`)
-      setSalesData(res.data)
-    } catch (err) { console.error(err) }
-  }
+  useEffect(() => { fetchReport(activeTab) }, [activeTab, period])
 
-  const fetchProfit = async () => {
-    try {
-      const res = await API.get(`/reports/profit/?days=${selectedDays}`)
-      setProfitData(res.data)
-    } catch (err) { console.error(err) }
-  }
-
-  const fetchTopProducts = async () => {
-    try {
-      const res = await API.get(`/reports/top-products/?days=${selectedDays}`)
-      setTopProducts(res.data)
-    } catch (err) { console.error(err) }
-  }
-
-  const fetchExpenses = async () => {
-    try {
-      const res = await API.get('/reports/expenses/')
-      setExpenses(res.data)
-    } catch (err) { console.error(err) }
-  }
-
-  const handleDeleteExpense = async (id) => {
-    if (!window.confirm('Delete this expense?')) return
-    try {
-      await API.delete(`/reports/expenses/${id}/`)
-      fetchExpenses()
-    } catch (err) { alert('Error deleting expense!') }
-  }
-
-  // Format chart data
-  const chartData = salesData?.chart_data?.map(d => ({
-    date: d.period ? new Date(d.period).toLocaleDateString('en-PK', { month: 'short', day: 'numeric' }) : '',
-    Sales: Number(d.total_sales || 0),
-    Orders: Number(d.total_orders || 0),
-  })) || []
-
-  const pieData = profitData?.expenses_by_category?.map(e => ({
-    name: e.category.charAt(0).toUpperCase() + e.category.slice(1),
-    value: Number(e.total),
-  })) || []
+  const data       = reportData[activeTab]
+  const activeTabObj = REPORT_TABS.find(t => t.key === activeTab)
 
   return (
     <Layout>
-      <div className="space-y-4">
+      <div style={{ background: GRAY_BG, minHeight: '100vh', padding: '24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-        {/* Header */}
-        <div className="flex justify-between items-center">
+        {/* ── Header ─────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
-            <p className="text-gray-500 text-sm">Sales, profit & analytics</p>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: 0 }}>Reports</h1>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>Analytics & business insights</p>
           </div>
-          {/* Period Filter */}
-          <div className="flex gap-2">
-            {PERIODS.map(p => (
-              <button
-                key={p.days}
-                onClick={() => setSelectedDays(p.days)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  selectedDays === p.days ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <MdAttachMoney size={18} className="text-blue-600" />
-              <p className="text-xs text-gray-500">Total Revenue</p>
+          {/* Period + Refresh */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {/* Period Pills */}
+            <div style={{ display: 'flex', background: '#e5e7eb', borderRadius: 10, padding: 4, gap: 2 }}>
+              {PERIODS.map(p => (
+                <button key={p.key} onClick={() => setPeriod(p.key)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    border: 'none', cursor: 'pointer', transition: 'all .15s',
+                    background: period === p.key ? '#fff' : 'transparent',
+                    color:      period === p.key ? '#111827' : '#6b7280',
+                    boxShadow:  period === p.key ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
+                  }}>
+                  {p.label}
+                </button>
+              ))}
             </div>
-            <p className="text-xl font-bold text-gray-800">
-              Rs. {Number(salesData?.summary?.total_revenue || 0).toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <MdShoppingBag size={18} className="text-green-600" />
-              <p className="text-xs text-gray-500">Total Orders</p>
-            </div>
-            <p className="text-xl font-bold text-gray-800">
-              {salesData?.summary?.total_orders || 0}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <MdTrendingUp size={18} className="text-purple-600" />
-              <p className="text-xs text-gray-500">Net Profit</p>
-            </div>
-            <p className={`text-xl font-bold ${Number(profitData?.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              Rs. {Number(profitData?.net_profit || 0).toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <MdReceipt size={18} className="text-red-500" />
-              <p className="text-xs text-gray-500">Total Expenses</p>
-            </div>
-            <p className="text-xl font-bold text-gray-800">
-              Rs. {Number(profitData?.total_expenses || 0).toLocaleString()}
-            </p>
-          </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-          {['Sales', 'Profit & Loss', 'Top Products', 'Expenses'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeTab === tab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Sales Tab ── */}
-        {activeTab === 'Sales' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="font-semibold text-gray-800 mb-4">Sales Overview</h2>
-            {chartData.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">No sales data for this period</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(val) => `Rs. ${Number(val).toLocaleString()}`} />
-                  <Bar dataKey="Sales" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        )}
-
-        {/* ── Profit & Loss Tab ── */}
-        {activeTab === 'Profit & Loss' && (
-          <div className="grid grid-cols-2 gap-4">
-            {/* P&L Breakdown */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="font-semibold text-gray-800 mb-4">Profit & Loss</h2>
-              <div className="space-y-3">
-                {[
-                  { label: 'Total Revenue', value: profitData?.total_revenue, color: 'text-blue-600' },
-                  { label: 'Cost of Goods', value: profitData?.total_cogs, color: 'text-orange-500', minus: true },
-                  { label: 'Gross Profit', value: profitData?.gross_profit, color: 'text-green-600', border: true },
-                  { label: 'Total Expenses', value: profitData?.total_expenses, color: 'text-red-500', minus: true },
-                  { label: 'Net Profit', value: profitData?.net_profit, color: Number(profitData?.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600', border: true, bold: true },
-                ].map((item, i) => (
-                  <div key={i} className={`flex justify-between py-2 ${item.border ? 'border-t border-gray-200 mt-2' : ''}`}>
-                    <span className={`text-sm text-gray-600 ${item.bold ? 'font-bold' : ''}`}>{item.label}</span>
-                    <span className={`text-sm font-medium ${item.color} ${item.bold ? 'font-bold' : ''}`}>
-                      {item.minus ? '- ' : ''}Rs. {Number(item.value || 0).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
+            {/* Custom date range */}
+            {period === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  style={{ padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, outline: 'none' }} />
+                <span style={{ color: '#9ca3af', fontSize: 12 }}>to</span>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  style={{ padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, outline: 'none' }} />
+                <button onClick={() => fetchReport()} style={{ padding: '7px 14px', background: BLUE, color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  Apply
+                </button>
               </div>
-            </div>
+            )}
 
-            {/* Expenses Pie Chart */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="font-semibold text-gray-800 mb-4">Expenses by Category</h2>
-              {pieData.length === 0 ? (
-                <div className="text-center py-16 text-gray-400">No expenses data</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                      {pieData.map((_, index) => (
-                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(val) => `Rs. ${Number(val).toLocaleString()}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+            {/* Refresh */}
+            <button onClick={() => fetchReport()} disabled={loading}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, color: '#374151', cursor: 'pointer', opacity: loading ? .6 : 1 }}>
+              <MdRefresh size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+              {loading ? 'Loading…' : 'Refresh'}
+            </button>
           </div>
-        )}
+        </div>
 
-        {/* ── Top Products Tab ── */}
-        {activeTab === 'Top Products' && (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                <tr>
-                  <th className="px-4 py-3 text-left">#</th>
-                  <th className="px-4 py-3 text-left">Product</th>
-                  <th className="px-4 py-3 text-left">Qty Sold</th>
-                  <th className="px-4 py-3 text-left">Revenue</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {topProducts.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center py-10 text-gray-400">No data for this period</td></tr>
-                ) : topProducts.map((p, i) => (
-                  <tr key={p.product__id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-400 font-medium">#{i + 1}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{p.product__name}</td>
-                    <td className="px-4 py-3 text-gray-600">{p.total_qty}</td>
-                    <td className="px-4 py-3 text-blue-600 font-medium">Rs. {Number(p.total_revenue).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* ── Expenses Tab ── */}
-        {activeTab === 'Expenses' && (
-          <div className="space-y-3">
-            <div className="flex justify-end">
-              <button
-                onClick={() => { setEditExpense(null); setExpenseModal(true) }}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-              >
-                <MdAdd size={20} /> Add Expense
+        {/* ── Tab Bar (POS style — blue active pill) ─────────────── */}
+        <div style={{ display: 'flex', gap: 4, background: '#e5e7eb', borderRadius: 12, padding: '5px', marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
+          {REPORT_TABS.map(({ key, label, icon: Icon }) => {
+            const active = activeTab === key
+            return (
+              <button key={key} onClick={() => setActiveTab(key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '8px 16px', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
+                  background: active ? BLUE : 'transparent',
+                  color:      active ? '#fff' : '#6b7280',
+                  boxShadow:  active ? '0 2px 6px rgba(26,86,219,.3)' : 'none',
+                }}>
+                <Icon size={15} /> {label}
+                {active && <span style={{ background: 'rgba(255,255,255,.25)', borderRadius: 20, padding: '1px 7px', fontSize: 11 }}>●</span>}
               </button>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Title</th>
-                    <th className="px-4 py-3 text-left">Category</th>
-                    <th className="px-4 py-3 text-left">Amount</th>
-                    <th className="px-4 py-3 text-left">Date</th>
-                    <th className="px-4 py-3 text-left">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {expenses.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center py-10 text-gray-400">No expenses added yet</td></tr>
-                  ) : expenses.map(exp => (
-                    <tr key={exp.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-800">{exp.title}</td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs capitalize">
-                          {exp.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-red-500 font-medium">Rs. {Number(exp.amount).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-gray-500">{exp.date}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button onClick={() => { setEditExpense(exp); setExpenseModal(true) }} className="text-blue-600 hover:text-blue-800">
-                            <MdEdit size={18} />
-                          </button>
-                          <button onClick={() => handleDeleteExpense(exp.id)} className="text-red-500 hover:text-red-700">
-                            <MdDelete size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+            )
+          })}
+        </div>
 
-      {expenseModal && (
-        <ExpenseModal
-          editExpense={editExpense}
-          onClose={() => { setExpenseModal(false); setEditExpense(null) }}
-          onDone={fetchExpenses}
-        />
-      )}
+        {/* ── Content ────────────────────────────────────────────── */}
+        <div key={activeTab + period}>
+          {loading && !data ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+              <div style={{ width: 36, height: 36, border: '4px solid #e5e7eb', borderTop: `4px solid ${BLUE}`, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            </div>
+          ) : (
+            <>
+              {activeTab === 'overview'  && <OverviewTab    data={data} />}
+              {activeTab === 'sales'     && <SalesTrendTab  data={data} />}
+              {activeTab === 'products'  && <BestSellersTab data={data} />}
+              {activeTab === 'profit'    && <ProfitTab      data={data} />}
+              {activeTab === 'suppliers' && <SupplierTab    data={data} />}
+              {activeTab === 'customers' && <CustomerTab    data={data} />}
+              {activeTab === 'tax'       && <TaxTab         data={data} />}
+            </>
+          )}
+        </div>
+
+        <style>{`
+          @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+          table tr:hover td { background: #f9fafb; }
+        `}</style>
+      </div>
     </Layout>
   )
 }

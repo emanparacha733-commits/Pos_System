@@ -2,6 +2,9 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+CELERY_BROKER_URL    = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,6 +35,7 @@ INSTALLED_APPS = [
     'reports',
     'business',
      'ecommerce',
+       'django_filters',
 ]
 
 MIDDLEWARE = [

@@ -7,8 +7,9 @@ import Inventory from './pages/Inventory/Inventory'
 import Customers from './pages/Customers/Customers'
 import Reports from './pages/Reports/Reports'
 import BusinessProfile from './pages/Business/BusinessProfile'
-import Users from './pages/Users/Users'   
-       import Store from './pages/Store/Store'
+import Users from './pages/Users/Users'
+import Store from './pages/Store/Home'
+import Orders from './pages/Orders/Orders'
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth()
@@ -44,18 +45,20 @@ const App = () => {
           <Route path="/business" element={
             <ProtectedRoute><BusinessProfile /></ProtectedRoute>
           } />
-
-
-
-<Route path="/store" element={<Store />} />
           <Route path="/users" element={
             <ProtectedRoute><Users /></ProtectedRoute>
           } />
+          <Route path="/orders" element={
+            <ProtectedRoute><Orders /></ProtectedRoute>
+          } />
+          <Route path="/store" element={<Store />} />
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
   )
+
+  
 }
 
 export default App

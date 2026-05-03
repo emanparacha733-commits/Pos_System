@@ -8,7 +8,8 @@ import {
   MdBarChart,
   MdLogout,
   MdBusiness,
-  MdShield
+  MdShield,
+  MdShoppingBag
 } from 'react-icons/md'
 
 const Sidebar = () => {
@@ -16,6 +17,7 @@ const Sidebar = () => {
 
   const links = [
     { to: '/dashboard', icon: <MdDashboard size={20} />, label: 'Dashboard' },
+    { to: '/orders', icon: <MdShoppingBag size={20} />, label: 'Orders' },
     { to: '/pos', icon: <MdPointOfSale size={20} />, label: 'POS' },
     { to: '/inventory', icon: <MdInventory size={20} />, label: 'Inventory' },
     { to: '/customers', icon: <MdPeople size={20} />, label: 'Customers' },
@@ -26,13 +28,11 @@ const Sidebar = () => {
 
   return (
     <div className="w-64 min-h-screen bg-blue-700 text-white flex flex-col">
-      {/* Logo */}
       <div className="p-6 border-b border-blue-600">
         <h1 className="text-xl font-bold">POS System</h1>
         <p className="text-blue-300 text-sm mt-1">Business Management</p>
       </div>
 
-      {/* Nav Links */}
       <nav className="flex-1 p-4 space-y-1">
         {links.map((link) => (
           <NavLink
@@ -52,7 +52,6 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      {/* Logout */}
       <div className="p-4 border-t border-blue-600">
         <button
           onClick={logout}
