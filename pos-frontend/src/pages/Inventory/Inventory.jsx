@@ -40,65 +40,82 @@ const MOVEMENT_COLORS = {
   transfer:   'text-gray-600 bg-gray-100',
 }
 
+// ─── Design tokens matching POS blue theme ────────────────────────
+const BLUE = '#1a56db'
+
 // ─── Toast ───────────────────────────────────────────────────────
 const Toast = ({ msg, type, onDone }) => {
   useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t) }, [onDone])
   return (
-    <div className={`fixed bottom-6 right-6 z-[100] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold
-      ${type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-500 text-white'}`}>
+    <div style={{
+      position: 'fixed', bottom: 24, right: 24, zIndex: 100,
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '12px 20px', borderRadius: 14,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+      fontSize: 13, fontWeight: 600,
+      background: type === 'success' ? '#059669' : '#dc2626',
+      color: '#fff',
+    }}>
       {type === 'success' ? <MdCheckCircle size={18} /> : <MdBlock size={18} />}
       {msg}
     </div>
   )
 }
 
-// ─── Modal Shell ─────────────────────────────────────────────────
+// ─── Modal ────────────────────────────────────────────────────────
 const Modal = ({ title, onClose, children, footer, wide = false }) => (
-  <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-    <div className={`bg-white rounded-2xl shadow-2xl flex flex-col w-full ${wide ? 'max-w-2xl' : 'max-w-md'} max-h-[92vh]`}>
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-        <h2 className="font-bold text-gray-900 text-base">{title}</h2>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-400 transition">
-          <MdClose size={18} />
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: wide ? 640 : 440, maxHeight: '92vh' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #f3f4f6' }}>
+        <h2 style={{ fontWeight: 700, color: '#111827', fontSize: 15, margin: 0 }}>{title}</h2>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4, borderRadius: 8, display: 'flex' }}>
+          <MdClose size={20} />
         </button>
       </div>
-      <div className="overflow-y-auto flex-1 px-5 py-4">{children}</div>
-      {footer && <div className="px-5 py-4 border-t border-gray-100 flex gap-3 shrink-0">{footer}</div>}
+      <div style={{ overflowY: 'auto', flex: 1, padding: '16px 20px' }}>{children}</div>
+      {footer && <div style={{ padding: '12px 20px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: 10 }}>{footer}</div>}
     </div>
   </div>
 )
 
-const Btn = ({ children, onClick, variant = 'primary', disabled, className = '' }) => {
-  const base = 'flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed'
+// ─── Btn ──────────────────────────────────────────────────────────
+const Btn = ({ children, onClick, variant = 'primary', disabled, style = {} }) => {
+  const base = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', border: 'none', opacity: disabled ? 0.5 : 1, transition: 'all .15s' }
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700',
-    ghost:   'bg-gray-100 text-gray-700 hover:bg-gray-200',
-    outline: 'border-2 border-blue-600 text-blue-600 hover:bg-blue-50',
+    primary: { background: BLUE, color: '#fff' },
+    ghost:   { background: '#f3f4f6', color: '#374151' },
+    outline: { background: '#fff', color: BLUE, border: `2px solid ${BLUE}` },
+    danger:  { background: '#dc2626', color: '#fff' },
   }
-  return <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]} ${className}`}>{children}</button>
+  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>{children}</button>
 }
 
+// ─── Field ────────────────────────────────────────────────────────
 const Field = ({ label, children }) => (
-  <div className="space-y-1.5">
-    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</label>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <label style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
     {children}
   </div>
 )
 
-const iCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition'
+const iCls = { width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 13, outline: 'none', background: '#f9fafb', boxSizing: 'border-box', fontFamily: 'inherit' }
 
 // ─── Stat Card ───────────────────────────────────────────────────
 const StatCard = ({ label, value, icon: Icon, accent, onClick }) => (
-  <div onClick={onClick}
-    className={`bg-white rounded-2xl border p-5 flex items-center gap-4 transition shadow-sm
-      ${onClick ? 'cursor-pointer hover:shadow-md' : ''}
-      ${accent === 'red' ? 'border-red-200 bg-red-50' : 'border-gray-100'}`}>
-    <div className={`rounded-2xl p-3 ${accent === 'red' ? 'bg-red-100' : 'bg-blue-50'}`}>
-      <Icon size={22} className={accent === 'red' ? 'text-red-500' : 'text-blue-600'} />
+  <div onClick={onClick} style={{
+    background: accent === 'red' ? '#fff1f2' : '#fff',
+    border: `1px solid ${accent === 'red' ? '#fecdd3' : '#e5e7eb'}`,
+    borderRadius: 12, padding: '16px 20px',
+    display: 'flex', alignItems: 'center', gap: 14,
+    cursor: onClick ? 'pointer' : 'default',
+    boxShadow: '0 1px 3px rgba(0,0,0,.06)',
+  }}>
+    <div style={{ background: accent === 'red' ? '#fee2e2' : '#dbeafe', borderRadius: 10, padding: 10, display: 'flex' }}>
+      <Icon size={22} style={{ color: accent === 'red' ? '#dc2626' : BLUE }} />
     </div>
     <div>
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
-      <p className={`text-2xl font-black mt-0.5 ${accent === 'red' ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
+      <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>{label}</p>
+      <p style={{ fontSize: 24, fontWeight: 800, color: accent === 'red' ? '#dc2626' : '#111827', margin: '2px 0 0' }}>{value}</p>
     </div>
   </div>
 )
@@ -126,27 +143,27 @@ const StockAdjustModal = ({ product, warehouses, onClose, onSuccess }) => {
   return (
     <Modal title="Stock Adjustment" onClose={onClose}
       footer={<>
-        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
-        <Btn onClick={handleSubmit} disabled={loading || !qty} className="flex-1">{loading ? 'Saving…' : 'Confirm'}</Btn>
+        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
+        <Btn onClick={handleSubmit} disabled={loading || !qty} style={{ flex: 1 }}>{loading ? 'Saving…' : 'Confirm'}</Btn>
       </>}>
-      <div className="space-y-4">
-        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-          <p className="font-bold text-gray-900">{product.name}</p>
-          <p className="text-sm text-gray-500 mt-0.5">
-            SKU: <span className="font-mono text-blue-700">{product.sku}</span> &nbsp;·&nbsp;
-            Stock: <span className="font-bold text-blue-700">{product.stock_quantity}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ background: '#eff6ff', borderRadius: 10, padding: 14, border: '1px solid #bfdbfe' }}>
+          <p style={{ fontWeight: 700, color: '#111827', margin: 0 }}>{product.name}</p>
+          <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0' }}>
+            SKU: <span style={{ fontFamily: 'monospace', color: BLUE }}>{product.sku}</span> &nbsp;·&nbsp;
+            Stock: <span style={{ fontWeight: 700, color: BLUE }}>{product.stock_quantity}</span>
           </p>
         </div>
         <Field label="Warehouse">
-          <select value={wh} onChange={e => setWh(e.target.value)} className={iCls}>
+          <select value={wh} onChange={e => setWh(e.target.value)} style={iCls}>
             {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         </Field>
         <Field label="Quantity (+ add, − deduct)">
-          <input type="number" value={qty} onChange={e => setQty(e.target.value)} placeholder="e.g. 10 or -5" className={iCls} />
+          <input type="number" value={qty} onChange={e => setQty(e.target.value)} placeholder="e.g. 10 or -5" style={iCls} />
         </Field>
         <Field label="Reason">
-          <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="Damage, count correction…" className={iCls} />
+          <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="Damage, count correction…" style={iCls} />
         </Field>
       </div>
     </Modal>
@@ -182,57 +199,57 @@ const ProductModal = ({ editProduct, suppliers, onClose, onSuccess }) => {
   return (
     <Modal title={editProduct ? 'Edit Product' : 'Add Product'} onClose={onClose} wide
       footer={<>
-        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
-        <Btn onClick={handleSubmit} disabled={loading || !form.name || !form.retail_price} className="flex-1">
+        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
+        <Btn onClick={handleSubmit} disabled={loading || !form.name || !form.retail_price} style={{ flex: 1 }}>
           {loading ? 'Saving…' : editProduct ? 'Update' : 'Add Product'}
         </Btn>
       </>}>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ gridColumn: '1 / -1' }}>
           <Field label="Product Name *">
-            <input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Oxford English Dictionary" className={iCls} />
+            <input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Oxford English Dictionary" style={iCls} />
           </Field>
         </div>
         <Field label="Category">
-          <select value={form.category} onChange={e => f('category', e.target.value)} className={iCls}>
+          <select value={form.category} onChange={e => f('category', e.target.value)} style={iCls}>
             {CATEGORY_CHOICES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </Field>
         <Field label="Supplier">
-          <select value={form.supplier} onChange={e => f('supplier', e.target.value)} className={iCls}>
+          <select value={form.supplier} onChange={e => f('supplier', e.target.value)} style={iCls}>
             <option value="">— No Supplier —</option>
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </Field>
         <Field label="Retail Price *">
-          <input type="number" value={form.retail_price} onChange={e => f('retail_price', e.target.value)} placeholder="0.00" className={iCls} />
+          <input type="number" value={form.retail_price} onChange={e => f('retail_price', e.target.value)} placeholder="0.00" style={iCls} />
         </Field>
         <Field label="Cost Price">
-          <input type="number" value={form.cost_price} onChange={e => f('cost_price', e.target.value)} placeholder="0.00" className={iCls} />
+          <input type="number" value={form.cost_price} onChange={e => f('cost_price', e.target.value)} placeholder="0.00" style={iCls} />
         </Field>
         <Field label="Wholesale Price">
-          <input type="number" value={form.wholesale_price} onChange={e => f('wholesale_price', e.target.value)} placeholder="0.00" className={iCls} />
+          <input type="number" value={form.wholesale_price} onChange={e => f('wholesale_price', e.target.value)} placeholder="0.00" style={iCls} />
         </Field>
         <Field label="Barcode">
-          <input value={form.barcode} onChange={e => f('barcode', e.target.value)} placeholder="Scan or enter" className={iCls} />
+          <input value={form.barcode} onChange={e => f('barcode', e.target.value)} placeholder="Scan or enter" style={iCls} />
         </Field>
         <Field label="Low Stock Threshold">
-          <input type="number" value={form.low_stock_threshold} onChange={e => f('low_stock_threshold', e.target.value)} className={iCls} />
+          <input type="number" value={form.low_stock_threshold} onChange={e => f('low_stock_threshold', e.target.value)} style={iCls} />
         </Field>
         <Field label="Reorder Quantity">
-          <input type="number" value={form.reorder_quantity} onChange={e => f('reorder_quantity', e.target.value)} className={iCls} />
+          <input type="number" value={form.reorder_quantity} onChange={e => f('reorder_quantity', e.target.value)} style={iCls} />
         </Field>
-        <div className="col-span-2">
+        <div style={{ gridColumn: '1 / -1' }}>
           <Field label="Description">
-            <textarea value={form.description} onChange={e => f('description', e.target.value)} rows={2} placeholder="Optional…" className={iCls} />
+            <textarea value={form.description} onChange={e => f('description', e.target.value)} rows={2} placeholder="Optional…" style={{ ...iCls, resize: 'vertical' }} />
           </Field>
         </div>
-        <div className="col-span-2 flex items-center gap-3">
+        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 10 }}>
           <button type="button" onClick={() => f('is_active', !form.is_active)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${form.is_active ? 'bg-blue-600' : 'bg-gray-300'}`}>
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.is_active ? 'translate-x-5' : ''}`} />
+            style={{ position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: form.is_active ? BLUE : '#d1d5db', transition: 'background .2s' }}>
+            <span style={{ position: 'absolute', top: 2, left: form.is_active ? 22 : 2, width: 20, height: 20, background: '#fff', borderRadius: '50%', boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .2s' }} />
           </button>
-          <span className="text-sm font-medium text-gray-700">Active Product</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>Active Product</span>
         </div>
       </div>
     </Modal>
@@ -262,28 +279,28 @@ const SupplierModal = ({ editSupplier, onClose, onSuccess }) => {
   return (
     <Modal title={editSupplier ? 'Edit Supplier' : 'Add Supplier'} onClose={onClose}
       footer={<>
-        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
-        <Btn onClick={handleSubmit} disabled={loading || !form.name} className="flex-1">
+        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
+        <Btn onClick={handleSubmit} disabled={loading || !form.name} style={{ flex: 1 }}>
           {loading ? 'Saving…' : editSupplier ? 'Update' : 'Add Supplier'}
         </Btn>
       </>}>
-      <div className="space-y-4">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Field label="Supplier Name *">
-          <input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Al-Faisal Publishers" className={iCls} />
+          <input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Al-Faisal Publishers" style={iCls} />
         </Field>
         <Field label="Contact Person">
-          <input value={form.contact_person} onChange={e => f('contact_person', e.target.value)} placeholder="Rep name" className={iCls} />
+          <input value={form.contact_person} onChange={e => f('contact_person', e.target.value)} placeholder="Rep name" style={iCls} />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Field label="Phone">
-            <input value={form.phone} onChange={e => f('phone', e.target.value)} placeholder="03xx-xxxxxxx" className={iCls} />
+            <input value={form.phone} onChange={e => f('phone', e.target.value)} placeholder="03xx-xxxxxxx" style={iCls} />
           </Field>
           <Field label="Email">
-            <input type="email" value={form.email} onChange={e => f('email', e.target.value)} placeholder="email@example.com" className={iCls} />
+            <input type="email" value={form.email} onChange={e => f('email', e.target.value)} placeholder="email@example.com" style={iCls} />
           </Field>
         </div>
         <Field label="Address">
-          <textarea value={form.address} onChange={e => f('address', e.target.value)} rows={2} placeholder="Full address" className={iCls} />
+          <textarea value={form.address} onChange={e => f('address', e.target.value)} rows={2} placeholder="Full address" style={{ ...iCls, resize: 'vertical' }} />
         </Field>
       </div>
     </Modal>
@@ -331,59 +348,58 @@ const POModal = ({ editPO, suppliers, warehouses, products, onClose, onSuccess }
   return (
     <Modal title={editPO ? 'Edit Purchase Order' : 'New Purchase Order'} onClose={onClose} wide
       footer={<>
-        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
-        <Btn onClick={handleSubmit} disabled={loading} className="flex-1">{loading ? 'Saving…' : editPO ? 'Update PO' : 'Create PO'}</Btn>
+        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
+        <Btn onClick={handleSubmit} disabled={loading} style={{ flex: 1 }}>{loading ? 'Saving…' : editPO ? 'Update PO' : 'Create PO'}</Btn>
       </>}>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Field label="Supplier *">
-            <select value={form.supplier} onChange={e => f('supplier', e.target.value)} className={iCls}>
+            <select value={form.supplier} onChange={e => f('supplier', e.target.value)} style={iCls}>
               <option value="">Select Supplier</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </Field>
           <Field label="Warehouse *">
-            <select value={form.warehouse} onChange={e => f('warehouse', e.target.value)} className={iCls}>
+            <select value={form.warehouse} onChange={e => f('warehouse', e.target.value)} style={iCls}>
               {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Field label="Expected Date">
-            <input type="date" value={form.expected_date} onChange={e => f('expected_date', e.target.value)} className={iCls} />
+            <input type="date" value={form.expected_date} onChange={e => f('expected_date', e.target.value)} style={iCls} />
           </Field>
           <Field label="Notes">
-            <input value={form.notes} onChange={e => f('notes', e.target.value)} placeholder="Optional" className={iCls} />
+            <input value={form.notes} onChange={e => f('notes', e.target.value)} placeholder="Optional" style={iCls} />
           </Field>
         </div>
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Order Items</span>
-            <Btn variant="outline" onClick={() => f('items', [...form.items, { product: '', quantity_ordered: 1, unit_cost: '' }])} className="!py-1 !px-3 !text-xs">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Order Items</span>
+            <Btn variant="outline" onClick={() => f('items', [...form.items, { product: '', quantity_ordered: 1, unit_cost: '' }])} style={{ padding: '5px 12px', fontSize: 12 }}>
               <MdAdd size={13} /> Add Item
             </Btn>
           </div>
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {form.items.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-[1fr_80px_90px_32px] gap-2 items-center bg-gray-50 rounded-xl p-2">
-                <select value={item.product} onChange={e => setItem(idx, 'product', e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 32px', gap: 8, alignItems: 'center', background: '#f9fafb', borderRadius: 10, padding: 8 }}>
+                <select value={item.product} onChange={e => setItem(idx, 'product', e.target.value)} style={{ ...iCls, background: '#fff' }}>
                   <option value="">Select Product</option>
                   {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
                 <input type="number" min="1" value={item.quantity_ordered} onChange={e => setItem(idx, 'quantity_ordered', e.target.value)}
-                  placeholder="Qty" className="px-2 py-2 border border-gray-200 rounded-lg text-sm text-center bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  placeholder="Qty" style={{ ...iCls, background: '#fff', textAlign: 'center' }} />
                 <input type="number" value={item.unit_cost} onChange={e => setItem(idx, 'unit_cost', e.target.value)}
-                  placeholder="Cost" className="px-2 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  placeholder="Cost" style={{ ...iCls, background: '#fff' }} />
                 <button onClick={() => f('items', form.items.filter((_, i) => i !== idx))} disabled={form.items.length === 1}
-                  className="text-red-400 hover:text-red-600 disabled:opacity-30 transition">
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', opacity: form.items.length === 1 ? 0.3 : 1 }}>
                   <MdClose size={16} />
                 </button>
               </div>
             ))}
           </div>
-          <div className="mt-3 text-right text-sm font-bold text-gray-800">
-            Total: <span className="text-blue-600 text-base">Rs. {total.toLocaleString()}</span>
+          <div style={{ marginTop: 10, textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#111827' }}>
+            Total: <span style={{ color: BLUE, fontSize: 15 }}>Rs. {total.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -415,27 +431,27 @@ const ReceivePOModal = ({ po, onClose, onSuccess }) => {
   return (
     <Modal title={`Receive Stock — PO-${String(po.id).padStart(4, '0')}`} onClose={onClose} wide
       footer={<>
-        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
-        <Btn onClick={handleReceive} disabled={loading} className="flex-1">{loading ? 'Processing…' : 'Confirm Receipt'}</Btn>
+        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
+        <Btn onClick={handleReceive} disabled={loading} style={{ flex: 1 }}>{loading ? 'Processing…' : 'Confirm Receipt'}</Btn>
       </>}>
-      <div className="space-y-3">
-        <div className="bg-blue-50 rounded-xl p-3 border border-blue-100 text-sm">
-          Supplier: <strong className="text-blue-800">{po.supplier_detail?.name}</strong>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ background: '#eff6ff', borderRadius: 10, padding: 12, border: '1px solid #bfdbfe', fontSize: 13 }}>
+          Supplier: <strong style={{ color: '#1e40af' }}>{po.supplier_detail?.name}</strong>
         </div>
         {pendingItems.length === 0
-          ? <p className="text-center py-6 text-gray-400">All items already received.</p>
+          ? <p style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af' }}>All items already received.</p>
           : pendingItems.map(item => (
-            <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-gray-800">{item.product_detail?.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#f9fafb', borderRadius: 10, padding: 12 }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: 0 }}>{item.product_detail?.name}</p>
+                <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>
                   Ordered: {item.quantity_ordered} · Received: {item.quantity_received} ·
-                  Pending: <strong className="text-blue-700">{item.pending_qty}</strong>
+                  Pending: <strong style={{ color: BLUE }}>{item.pending_qty}</strong>
                 </p>
               </div>
               <input type="number" min="0" max={item.pending_qty} value={qtys[item.id] ?? 0}
                 onChange={e => setQtys(p => ({ ...p, [item.id]: e.target.value }))}
-                className="w-20 px-3 py-2 border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                style={{ ...iCls, width: 72, textAlign: 'center' }} />
             </div>
           ))}
       </div>
@@ -470,6 +486,7 @@ const Inventory = () => {
   useEffect(() => { fetchAll() }, [])
   useEffect(() => { if (activeTab === 'movements') fetchMovements() }, [activeTab])
 
+  // ── ALL APIS SAME AS WORKING VERSION ─────────────────────────────
   const fetchAll       = () => { fetchProducts(); fetchSuppliers(); fetchWarehouses(); fetchPOs() }
   const fetchProducts  = async () => { try { const r = await API.get('/inventory/products/');        setProducts(r.data?.results ?? r.data) } catch {} }
   const fetchSuppliers = async () => { try { const r = await API.get('/inventory/suppliers/');       setSuppliers(r.data?.results ?? r.data) } catch {} }
@@ -503,20 +520,34 @@ const Inventory = () => {
   const lowStockCount   = products.filter(p => p.is_low_stock).length
   const outOfStockCount = products.filter(p => p.is_out_of_stock).length
 
+  // ── Shared table styles ───────────────────────────────────────
+  const thStyle = (right) => ({
+    padding: '10px 16px', textAlign: right ? 'right' : 'left',
+    fontSize: 11, fontWeight: 600, color: '#6b7280',
+    textTransform: 'uppercase', letterSpacing: '0.05em',
+    background: '#f9fafb', borderBottom: '1px solid #e5e7eb',
+    whiteSpace: 'nowrap',
+  })
+  const tdStyle = (right, extra = {}) => ({
+    padding: '12px 16px', textAlign: right ? 'right' : 'left',
+    fontSize: 13, color: '#374151',
+    borderBottom: '1px solid #f3f4f6', ...extra,
+  })
+
   return (
     <Layout>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
-      <div className="space-y-5 pb-10">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <h1 className="text-2xl font-black text-gray-900">Inventory</h1>
-            <p className="text-sm text-gray-400 mt-0.5">Products · Suppliers · Purchase Orders · Movements</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#111827', margin: 0 }}>Inventory</h1>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>Products · Suppliers · Purchase Orders · Movements</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={fetchAll} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl text-gray-400 hover:text-blue-600 hover:border-blue-300 transition">
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={fetchAll} style={{ width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff', cursor: 'pointer', color: '#6b7280' }}>
               <MdRefresh size={18} />
             </button>
             {activeTab !== 'movements' && (
@@ -524,7 +555,7 @@ const Inventory = () => {
                 if (activeTab === 'products')  { setEditProduct(null);  setProductModal(true) }
                 if (activeTab === 'suppliers') { setEditSupplier(null); setSupplierModal(true) }
                 if (activeTab === 'purchase')  { setEditPO(null);       setPOModal(true) }
-              }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition">
+              }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: BLUE, color: '#fff', padding: '9px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
                 <MdAdd size={18} />
                 Add {activeTab === 'products' ? 'Product' : activeTab === 'suppliers' ? 'Supplier' : 'Purchase Order'}
               </button>
@@ -533,101 +564,114 @@ const Inventory = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           <StatCard label="Total Products" value={products.length}  icon={MdInventory} />
           <StatCard label="Low Stock"      value={lowStockCount}    icon={MdWarning}   accent={lowStockCount > 0 ? 'red' : ''} onClick={() => { setActiveTab('products'); setLowOnly(true) }} />
           <StatCard label="Out of Stock"   value={outOfStockCount}  icon={MdBlock}     accent={outOfStockCount > 0 ? 'red' : ''} />
           <StatCard label="Suppliers"      value={suppliers.length} icon={MdPeople} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl w-fit overflow-x-auto">
+        {/* Tabs — blue active pill matching POS */}
+        <div style={{ display: 'flex', gap: 4, background: '#e5e7eb', borderRadius: 12, padding: 5, width: 'fit-content' }}>
           {TABS.map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => { setActiveTab(key); setSearch('') }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition whitespace-nowrap
-                ${activeTab === key ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-700'}`}>
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 16px', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .15s',
+                background: activeTab === key ? BLUE : 'transparent',
+                color:      activeTab === key ? '#fff' : '#6b7280',
+                boxShadow:  activeTab === key ? '0 2px 6px rgba(26,86,219,.3)' : 'none',
+              }}>
               <Icon size={15} /> {label}
             </button>
           ))}
         </div>
 
-        {/* PRODUCTS */}
+        {/* ── PRODUCTS TAB ─────────────────────────────────────── */}
         {activeTab === 'products' && (
-          <div className="space-y-3">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-48">
-                <MdSearch className="absolute left-3 top-3 text-gray-400" size={18} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Search bar */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                <MdSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} size={18} />
                 <input placeholder="Search by name or SKU…" value={search} onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  style={{ ...iCls, paddingLeft: 36 }} />
               </div>
-              <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
-                className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <select value={catFilter} onChange={e => setCatFilter(e.target.value)} style={{ ...iCls, width: 'auto' }}>
                 <option value="">All Categories</option>
                 {CATEGORY_CHOICES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
-              <button onClick={() => setLowOnly(!lowOnly)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition
-                  ${lowOnly ? 'border-red-400 bg-red-50 text-red-600' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+              <button onClick={() => setLowOnly(!lowOnly)} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                border: `2px solid ${lowOnly ? '#f87171' : '#e5e7eb'}`,
+                background: lowOnly ? '#fff1f2' : '#fff', color: lowOnly ? '#dc2626' : '#6b7280',
+              }}>
                 <MdWarning size={16} /> Low Stock {lowOnly && `(${lowStockCount})`}
               </button>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
+
+            {/* Table */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
                     <tr>
-                      <th className="px-4 py-3 text-left">Product</th>
-                      <th className="px-4 py-3 text-left">Category</th>
-                      <th className="px-4 py-3 text-left">Supplier</th>
-                      <th className="px-4 py-3 text-right">Retail</th>
-                      <th className="px-4 py-3 text-right">Cost</th>
-                      <th className="px-4 py-3 text-right">Margin</th>
-                      <th className="px-4 py-3 text-center">Stock</th>
-                      <th className="px-4 py-3 text-center">Status</th>
-                      <th className="px-4 py-3 text-center">Actions</th>
+                      <th style={thStyle()}>Product</th>
+                      <th style={thStyle()}>Category</th>
+                      <th style={thStyle()}>Supplier</th>
+                      <th style={thStyle(true)}>Retail</th>
+                      <th style={thStyle(true)}>Cost</th>
+                      <th style={thStyle(true)}>Margin</th>
+                      <th style={{ ...thStyle(), textAlign: 'center' }}>Stock</th>
+                      <th style={{ ...thStyle(), textAlign: 'center' }}>Status</th>
+                      <th style={{ ...thStyle(), textAlign: 'center' }}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody>
                     {filteredProducts.length === 0 ? (
-                      <tr><td colSpan={9} className="text-center py-16 text-gray-300">
-                        <MdInventory size={40} className="mx-auto mb-2" /><p>No products found</p>
+                      <tr><td colSpan={9} style={{ textAlign: 'center', padding: '48px 0', color: '#d1d5db' }}>
+                        <MdInventory size={36} style={{ display: 'block', margin: '0 auto 8px' }} />
+                        No products found
                       </td></tr>
                     ) : filteredProducts.map(p => (
-                      <tr key={p.id} className="hover:bg-gray-50 transition">
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-gray-900">{p.name}</p>
-                          <p className="text-xs text-gray-400 font-mono">{p.sku}</p>
+                      <tr key={p.id} style={{ transition: 'background .1s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                        <td style={tdStyle()}>
+                          <p style={{ fontWeight: 600, color: '#111827', margin: 0 }}>{p.name}</p>
+                          <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0', fontFamily: 'monospace' }}>{p.sku}</p>
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold capitalize">{p.category}</span>
+                        <td style={tdStyle()}>
+                          <span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>{p.category}</span>
                         </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs">{p.supplier_detail?.name || '—'}</td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-800">Rs. {Number(p.retail_price).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right text-gray-400 text-xs">Rs. {Number(p.cost_price).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="flex items-center justify-end gap-1 text-emerald-600 text-xs font-bold">
+                        <td style={tdStyle(false, { fontSize: 12, color: '#6b7280' })}>{p.supplier_detail?.name || '—'}</td>
+                        <td style={tdStyle(true, { fontWeight: 700, color: '#111827' })}>Rs. {Number(p.retail_price).toLocaleString()}</td>
+                        <td style={tdStyle(true, { fontSize: 12, color: '#9ca3af' })}>Rs. {Number(p.cost_price).toLocaleString()}</td>
+                        <td style={tdStyle(true)}>
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, color: '#059669', fontSize: 12, fontWeight: 700 }}>
                             <MdTrendingUp size={13} />{p.profit_margin}%
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <span className={`font-black text-base ${p.is_out_of_stock ? 'text-red-500' : p.is_low_stock ? 'text-amber-500' : 'text-emerald-600'}`}>
+                        <td style={{ ...tdStyle(), textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                            <span style={{ fontWeight: 800, fontSize: 15, color: p.is_out_of_stock ? '#dc2626' : p.is_low_stock ? '#d97706' : '#059669' }}>
                               {p.stock_quantity}
                             </span>
-                            {p.is_low_stock && !p.is_out_of_stock && <MdWarning size={13} className="text-amber-500" />}
-                            {p.is_out_of_stock && <MdBlock size={13} className="text-red-500" />}
+                            {p.is_low_stock && !p.is_out_of_stock && <MdWarning size={13} style={{ color: '#d97706' }} />}
+                            {p.is_out_of_stock && <MdBlock size={13} style={{ color: '#dc2626' }} />}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                        <td style={{ ...tdStyle(), textAlign: 'center' }}>
+                          <span style={{ background: p.is_active ? '#d1fae5' : '#f3f4f6', color: p.is_active ? '#065f46' : '#6b7280', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
                             {p.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => setAdjustModal(p)} className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition"><MdBuild size={15} /></button>
-                            <button onClick={() => { setEditProduct(p); setProductModal(true) }} className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"><MdEdit size={15} /></button>
-                            <button onClick={() => deleteProduct(p.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition"><MdDelete size={15} /></button>
+                        <td style={{ ...tdStyle(), textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                            <button onClick={() => setAdjustModal(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', padding: 6, borderRadius: 8 }}><MdBuild size={15} /></button>
+                            <button onClick={() => { setEditProduct(p); setProductModal(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, padding: 6, borderRadius: 8 }}><MdEdit size={15} /></button>
+                            <button onClick={() => deleteProduct(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 6, borderRadius: 8 }}><MdDelete size={15} /></button>
                           </div>
                         </td>
                       </tr>
@@ -639,149 +683,151 @@ const Inventory = () => {
           </div>
         )}
 
-        {/* SUPPLIERS */}
+        {/* ── SUPPLIERS TAB ─────────────────────────────────────── */}
         {activeTab === 'suppliers' && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Supplier</th>
-                    <th className="px-4 py-3 text-left">Contact</th>
-                    <th className="px-4 py-3 text-left">Phone</th>
-                    <th className="px-4 py-3 text-left">Email</th>
-                    <th className="px-4 py-3 text-left">Address</th>
-                    <th className="px-4 py-3 text-center">Actions</th>
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle()}>Supplier</th>
+                  <th style={thStyle()}>Contact</th>
+                  <th style={thStyle()}>Phone</th>
+                  <th style={thStyle()}>Email</th>
+                  <th style={thStyle()}>Address</th>
+                  <th style={{ ...thStyle(), textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suppliers.length === 0 ? (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: '48px 0', color: '#d1d5db' }}>
+                    <MdPeople size={36} style={{ display: 'block', margin: '0 auto 8px' }} />No suppliers added yet
+                  </td></tr>
+                ) : suppliers.map(s => (
+                  <tr key={s.id}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    <td style={tdStyle(false, { fontWeight: 600, color: '#111827' })}>{s.name}</td>
+                    <td style={tdStyle(false, { color: '#6b7280' })}>{s.contact_person || '—'}</td>
+                    <td style={tdStyle(false, { color: '#6b7280' })}>{s.phone || '—'}</td>
+                    <td style={tdStyle(false, { color: '#6b7280' })}>{s.email || '—'}</td>
+                    <td style={tdStyle(false, { color: '#9ca3af', fontSize: 12, maxWidth: 160 })}>{s.address || '—'}</td>
+                    <td style={{ ...tdStyle(), textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <button onClick={() => { setEditSupplier(s); setSupplierModal(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, padding: 6, borderRadius: 8 }}><MdEdit size={15} /></button>
+                        <button onClick={() => deleteSupplier(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 6, borderRadius: 8 }}><MdDelete size={15} /></button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {suppliers.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-16 text-gray-300">
-                      <MdPeople size={40} className="mx-auto mb-2" /><p>No suppliers added yet</p>
-                    </td></tr>
-                  ) : suppliers.map(s => (
-                    <tr key={s.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 font-semibold text-gray-900">{s.name}</td>
-                      <td className="px-4 py-3 text-gray-500">{s.contact_person || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{s.phone || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{s.email || '—'}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs max-w-[160px] truncate">{s.address || '—'}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => { setEditSupplier(s); setSupplierModal(true) }} className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"><MdEdit size={15} /></button>
-                          <button onClick={() => deleteSupplier(s.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition"><MdDelete size={15} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* PURCHASE ORDERS */}
+        {/* ── PURCHASE ORDERS TAB ───────────────────────────────── */}
         {activeTab === 'purchase' && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3 text-left">PO #</th>
-                    <th className="px-4 py-3 text-left">Supplier</th>
-                    <th className="px-4 py-3 text-left">Warehouse</th>
-                    <th className="px-4 py-3 text-left">Date</th>
-                    <th className="px-4 py-3 text-right">Total</th>
-                    <th className="px-4 py-3 text-center">Status</th>
-                    <th className="px-4 py-3 text-center">Actions</th>
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle()}>PO #</th>
+                  <th style={thStyle()}>Supplier</th>
+                  <th style={thStyle()}>Warehouse</th>
+                  <th style={thStyle()}>Date</th>
+                  <th style={thStyle(true)}>Total</th>
+                  <th style={{ ...thStyle(), textAlign: 'center' }}>Status</th>
+                  <th style={{ ...thStyle(), textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchaseOrders.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '48px 0', color: '#d1d5db' }}>
+                    <MdLocalShipping size={36} style={{ display: 'block', margin: '0 auto 8px' }} />No purchase orders yet
+                  </td></tr>
+                ) : purchaseOrders.map(po => (
+                  <tr key={po.id}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    <td style={tdStyle(false, { fontFamily: 'monospace', fontWeight: 700, color: BLUE })}>PO-{String(po.id).padStart(4, '0')}</td>
+                    <td style={tdStyle(false, { fontWeight: 600 })}>{po.supplier_detail?.name || '—'}</td>
+                    <td style={tdStyle(false, { fontSize: 12, color: '#9ca3af' })}>{po.warehouse_detail?.name || '—'}</td>
+                    <td style={tdStyle(false, { fontSize: 12, color: '#9ca3af' })}>{new Date(po.order_date).toLocaleDateString('en-PK')}</td>
+                    <td style={tdStyle(true, { fontWeight: 700 })}>Rs. {Number(po.total_amount).toLocaleString()}</td>
+                    <td style={{ ...tdStyle(), textAlign: 'center' }}>
+                      <span style={{ ...PO_STATUS_COLORS[po.status] && {}, borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}
+                        className={PO_STATUS_COLORS[po.status]}>
+                        {po.status_display}
+                      </span>
+                    </td>
+                    <td style={{ ...tdStyle(), textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        {!['received', 'cancelled'].includes(po.status) && <>
+                          <button onClick={() => setReceivePO(po)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#059669', padding: 6, borderRadius: 8 }}><MdArrowDownward size={15} /></button>
+                          <button onClick={() => { setEditPO(po); setPOModal(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, padding: 6, borderRadius: 8 }}><MdEdit size={15} /></button>
+                          <button onClick={() => cancelPO(po.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 6, borderRadius: 8 }}><MdBlock size={15} /></button>
+                        </>}
+                        {po.status === 'received' && <span style={{ fontSize: 12, color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><MdCheckCircle size={14} /> Done</span>}
+                        {po.status === 'cancelled' && <span style={{ fontSize: 12, color: '#9ca3af' }}>Cancelled</span>}
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {purchaseOrders.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-16 text-gray-300">
-                      <MdLocalShipping size={40} className="mx-auto mb-2" /><p>No purchase orders yet</p>
-                    </td></tr>
-                  ) : purchaseOrders.map(po => (
-                    <tr key={po.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 font-mono font-bold text-blue-600">PO-{String(po.id).padStart(4, '0')}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-800">{po.supplier_detail?.name || '—'}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs">{po.warehouse_detail?.name || '—'}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs">{new Date(po.order_date).toLocaleDateString('en-PK')}</td>
-                      <td className="px-4 py-3 text-right font-bold text-gray-800">Rs. {Number(po.total_amount).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${PO_STATUS_COLORS[po.status] || 'bg-gray-100 text-gray-500'}`}>
-                          {po.status_display}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          {!['received', 'cancelled'].includes(po.status) && <>
-                            <button onClick={() => setReceivePO(po)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition"><MdArrowDownward size={15} /></button>
-                            <button onClick={() => { setEditPO(po); setPOModal(true) }} className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"><MdEdit size={15} /></button>
-                            <button onClick={() => cancelPO(po.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition"><MdBlock size={15} /></button>
-                          </>}
-                          {po.status === 'received' && <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><MdCheckCircle size={14} /> Done</span>}
-                          {po.status === 'cancelled' && <span className="text-xs text-gray-400">Cancelled</span>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* STOCK MOVEMENTS */}
+        {/* ── STOCK MOVEMENTS TAB ───────────────────────────────── */}
         {activeTab === 'movements' && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Product</th>
-                    <th className="px-4 py-3 text-left">Type</th>
-                    <th className="px-4 py-3 text-center">Qty</th>
-                    <th className="px-4 py-3 text-center">Before</th>
-                    <th className="px-4 py-3 text-center">After</th>
-                    <th className="px-4 py-3 text-left">Reference</th>
-                    <th className="px-4 py-3 text-left">By</th>
-                    <th className="px-4 py-3 text-left">Date</th>
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle()}>Product</th>
+                  <th style={thStyle()}>Type</th>
+                  <th style={{ ...thStyle(), textAlign: 'center' }}>Qty</th>
+                  <th style={{ ...thStyle(), textAlign: 'center' }}>Before</th>
+                  <th style={{ ...thStyle(), textAlign: 'center' }}>After</th>
+                  <th style={thStyle()}>Reference</th>
+                  <th style={thStyle()}>By</th>
+                  <th style={thStyle()}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movements.length === 0 ? (
+                  <tr><td colSpan={8} style={{ textAlign: 'center', padding: '48px 0', color: '#d1d5db' }}>
+                    <MdHistory size={36} style={{ display: 'block', margin: '0 auto 8px' }} />No movements recorded
+                  </td></tr>
+                ) : movements.map(m => (
+                  <tr key={m.id}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    <td style={tdStyle()}>
+                      <p style={{ fontWeight: 600, color: '#111827', margin: 0 }}>{m.product_detail?.name}</p>
+                      <p style={{ fontSize: 11, fontFamily: 'monospace', color: '#9ca3af', margin: '2px 0 0' }}>{m.product_detail?.sku}</p>
+                    </td>
+                    <td style={tdStyle()}>
+                      <span style={{ borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}
+                        className={MOVEMENT_COLORS[m.movement_type]}>
+                        {m.movement_type_display}
+                      </span>
+                    </td>
+                    <td style={{ ...tdStyle(), textAlign: 'center' }}>
+                      <span style={{ fontWeight: 800, color: m.quantity > 0 ? '#059669' : '#dc2626' }}>
+                        {m.quantity > 0 ? '+' : ''}{m.quantity}
+                      </span>
+                    </td>
+                    <td style={{ ...tdStyle(), textAlign: 'center', color: '#9ca3af' }}>{m.stock_before}</td>
+                    <td style={{ ...tdStyle(), textAlign: 'center', fontWeight: 700, color: '#111827' }}>{m.stock_after}</td>
+                    <td style={tdStyle(false, { fontSize: 12, fontFamily: 'monospace', color: '#9ca3af' })}>{m.reference || '—'}</td>
+                    <td style={tdStyle(false, { fontSize: 12, color: '#9ca3af' })}>{m.created_by_detail?.username || '—'}</td>
+                    <td style={tdStyle(false, { fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' })}>
+                      {new Date(m.created_at).toLocaleString('en-PK', { dateStyle: 'short', timeStyle: 'short' })}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {movements.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-16 text-gray-300">
-                      <MdHistory size={40} className="mx-auto mb-2" /><p>No movements recorded</p>
-                    </td></tr>
-                  ) : movements.map(m => (
-                    <tr key={m.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-gray-800">{m.product_detail?.name}</p>
-                        <p className="text-xs font-mono text-gray-400">{m.product_detail?.sku}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${MOVEMENT_COLORS[m.movement_type] || 'bg-gray-100 text-gray-600'}`}>
-                          {m.movement_type_display}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`font-black ${m.quantity > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {m.quantity > 0 ? '+' : ''}{m.quantity}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center text-gray-400">{m.stock_before}</td>
-                      <td className="px-4 py-3 text-center font-bold text-gray-700">{m.stock_after}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs font-mono">{m.reference || '—'}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs">{m.created_by_detail?.username || '—'}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                        {new Date(m.created_at).toLocaleString('en-PK', { dateStyle: 'short', timeStyle: 'short' })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
