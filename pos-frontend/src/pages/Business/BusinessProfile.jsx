@@ -7,55 +7,89 @@ import {
   MdCancel, MdDelete
 } from "react-icons/md";
 
+const ALLOWED_FIELDS = ["name", "type", "address", "currency", "tax_rate", "phone", "email", "website"];
+
+const cleanPayload = (formData) =>
+  ALLOWED_FIELDS.reduce((acc, key) => ({ ...acc, [key]: formData[key] ?? "" }), {});
+
+const DEFAULT_FORM = {
+  name: "", type: "generic", address: "",
+  currency: "PKR", tax_rate: 0, phone: "", email: "", website: ""
+};
+
 export default function BusinessProfile() {
   const [business, setBusiness] = useState(null);
-  const [form, setForm] = useState({
-    name: "", type: "generic", address: "",
-    currency: "PKR", tax_rate: 0, phone: "", email: "", website: ""
-  });
+  const [form, setForm] = useState(DEFAULT_FORM);
   const [editMode, setEditMode] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    API.get("/business/").then((res) => {
-      if (res.data.length > 0) {
-        setBusiness(res.data[0]);
-        setForm(res.data[0]);
-      } else {
-        setEditMode(true);
-      }
-    });
+    setFetching(true);
+    API.get("/business/")
+      .then((res) => {
+        if (res.data.length > 0) {
+          const biz = res.data[0];
+          setBusiness(biz);
+          setForm(cleanPayload(biz));
+        } else {
+          setEditMode(true);
+        }
+      })
+      .catch(() => {
+        showMessage("Failed to load business profile.", "error");
+      })
+      .finally(() => setFetching(false));
   }, []);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async () => {
-    setLoading(true);
-    try {
-      if (business) {
-        await API.put(`/business/${business.id}/`, form);
-      } else {
-        const res = await API.post("/business/", form);
-        setBusiness(res.data);
-      }
-      setMessage("Business profile saved successfully!");
-      setMessageType("success");
-      setEditMode(false);
-    } catch {
-      setMessage("Error saving profile. Please try again.");
-      setMessageType("error");
-    }
-    setLoading(false);
+  const showMessage = (msg, type) => {
+    setMessage(msg);
+    setMessageType(type);
     setTimeout(() => setMessage(""), 3000);
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) {
+      showMessage("Business name is required.", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = cleanPayload(form);
+      let saved;
+      if (business) {
+        const res = await API.put(`/business/${business.id}/`, payload);
+        saved = res.data;
+      } else {
+        const res = await API.post("/business/", payload);
+        saved = res.data;
+      }
+      setBusiness(saved);
+      setForm(cleanPayload(saved));
+      setEditMode(false);
+      showMessage("Business profile saved successfully!", "success");
+    } catch (err) {
+      console.error("Save error:", err.response?.data || err.message);
+      const detail = err.response?.data
+        ? JSON.stringify(err.response.data)
+        : "Error saving profile. Please try again.";
+      showMessage(detail, "error");
+    }
+    setLoading(false);
+  };
+
   const handleCancel = () => {
-    if (business) setForm(business);
+    if (business) setForm(cleanPayload(business));
+    else setForm(DEFAULT_FORM);
     setEditMode(false);
+    setMessage("");
   };
 
   const handleDelete = async () => {
@@ -63,15 +97,13 @@ export default function BusinessProfile() {
     try {
       await API.delete(`/business/${business.id}/`);
       setBusiness(null);
-      setForm({ name: "", type: "generic", address: "", currency: "PKR", tax_rate: 0, phone: "", email: "", website: "" });
+      setForm(DEFAULT_FORM);
       setEditMode(true);
-      setMessage("Business profile deleted successfully!");
-      setMessageType("success");
-    } catch {
-      setMessage("Error deleting profile. Please try again.");
-      setMessageType("error");
+      showMessage("Business profile deleted successfully!", "success");
+    } catch (err) {
+      console.error("Delete error:", err.response?.data || err.message);
+      showMessage("Error deleting profile. Please try again.", "error");
     }
-    setTimeout(() => setMessage(""), 3000);
   };
 
   const Field = ({ value, icon }) => (
@@ -80,6 +112,16 @@ export default function BusinessProfile() {
       <span className="text-gray-800 font-medium">{value || "—"}</span>
     </div>
   );
+
+  if (fetching) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-48">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -97,24 +139,31 @@ export default function BusinessProfile() {
             </div>
           </div>
 
-          {/* Buttons */}
-          {!editMode ? (
+          {/* Buttons — only show delete/edit if business exists AND not in edit mode */}
+          {!editMode && business ? (
             <div className="flex gap-2 w-full sm:w-auto">
-              <button onClick={handleDelete}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-50 text-red-600 px-4 py-2.5 rounded-xl hover:bg-red-100 transition font-medium">
+              <button
+                onClick={handleDelete}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-50 text-red-600 px-4 py-2.5 rounded-xl hover:bg-red-100 transition font-medium"
+              >
                 <MdDelete size={18} /> Delete
               </button>
-              <button onClick={() => setEditMode(true)}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition font-medium">
+              <button
+                onClick={() => setEditMode(true)}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition font-medium"
+              >
                 <MdEdit size={18} /> Edit Profile
               </button>
             </div>
-          ) : (
-            <button onClick={handleCancel}
-              className="flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition font-medium w-full sm:w-auto">
+          ) : editMode && business ? (
+            /* Only show cancel if editing an existing business (not creating new) */
+            <button
+              onClick={handleCancel}
+              className="flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition font-medium w-full sm:w-auto"
+            >
               <MdCancel size={18} /> Cancel
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* ── Alert Message ── */}
@@ -144,9 +193,13 @@ export default function BusinessProfile() {
               {editMode ? (
                 <div className="relative">
                   <MdBusiness className="absolute left-3 top-3 text-gray-400" size={18} />
-                  <input name="name" value={form.name} onChange={handleChange}
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
                     className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="My Awesome Business" />
+                    placeholder="My Awesome Business"
+                  />
                 </div>
               ) : (
                 <Field value={form.name} icon={<MdBusiness size={18} />} />
@@ -159,12 +212,16 @@ export default function BusinessProfile() {
               {editMode ? (
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {["retail", "restaurant", "pharmacy", "salon", "generic"].map((type) => (
-                    <button key={type} onClick={() => setForm({ ...form, type })}
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, type }))}
                       className={`py-2 px-2 rounded-lg text-xs sm:text-sm font-medium capitalize transition ${
                         form.type === type
                           ? "bg-blue-600 text-white"
                           : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}>
+                      }`}
+                    >
                       {type}
                     </button>
                   ))}
@@ -181,9 +238,13 @@ export default function BusinessProfile() {
                 {editMode ? (
                   <div className="relative">
                     <MdPhone className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input name="phone" value={form.phone} onChange={handleChange}
+                    <input
+                      name="phone"
+                      value={form.phone}
+                      onChange={handleChange}
                       className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="+92 300 1234567" />
+                      placeholder="+92 300 1234567"
+                    />
                   </div>
                 ) : (
                   <Field value={form.phone} icon={<MdPhone size={18} />} />
@@ -194,9 +255,13 @@ export default function BusinessProfile() {
                 {editMode ? (
                   <div className="relative">
                     <MdEmail className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <input name="email" value={form.email} onChange={handleChange}
+                    <input
+                      name="email"
+                      value={form.email}
+                      onChange={handleChange}
                       className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="business@email.com" />
+                      placeholder="business@email.com"
+                    />
                   </div>
                 ) : (
                   <Field value={form.email} icon={<MdEmail size={18} />} />
@@ -210,9 +275,14 @@ export default function BusinessProfile() {
               {editMode ? (
                 <div className="relative">
                   <MdLocationOn className="absolute left-3 top-3 text-gray-400" size={18} />
-                  <textarea name="address" value={form.address} onChange={handleChange}
+                  <textarea
+                    name="address"
+                    value={form.address}
+                    onChange={handleChange}
                     className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3} placeholder="Business address..." />
+                    rows={3}
+                    placeholder="Business address..."
+                  />
                 </div>
               ) : (
                 <Field value={form.address} icon={<MdLocationOn size={18} />} />
@@ -225,9 +295,13 @@ export default function BusinessProfile() {
               {editMode ? (
                 <div className="relative">
                   <MdLanguage className="absolute left-3 top-3 text-gray-400" size={18} />
-                  <input name="website" value={form.website} onChange={handleChange}
+                  <input
+                    name="website"
+                    value={form.website}
+                    onChange={handleChange}
                     className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://mybusiness.com" />
+                    placeholder="https://mybusiness.com"
+                  />
                 </div>
               ) : (
                 <Field value={form.website} icon={<MdLanguage size={18} />} />
@@ -245,8 +319,12 @@ export default function BusinessProfile() {
                 {editMode ? (
                   <div className="relative">
                     <MdAttachMoney className="absolute left-3 top-3 text-gray-400" size={18} />
-                    <select name="currency" value={form.currency} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                    <select
+                      name="currency"
+                      value={form.currency}
+                      onChange={handleChange}
+                      className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                    >
                       <option value="PKR">🇵🇰 PKR</option>
                       <option value="USD">🇺🇸 USD</option>
                       <option value="EUR">🇪🇺 EUR</option>
@@ -262,9 +340,16 @@ export default function BusinessProfile() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tax Rate (%)</label>
                 {editMode ? (
-                  <input name="tax_rate" type="number" value={form.tax_rate} onChange={handleChange}
+                  <input
+                    name="tax_rate"
+                    type="number"
+                    value={form.tax_rate}
+                    onChange={handleChange}
                     className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0" min="0" max="100" />
+                    placeholder="0"
+                    min="0"
+                    max="100"
+                  />
                 ) : (
                   <Field value={`${form.tax_rate}%`} icon={<MdAttachMoney size={18} />} />
                 )}
@@ -293,8 +378,11 @@ export default function BusinessProfile() {
 
             {/* Save Button */}
             {editMode && (
-              <button onClick={handleSubmit} disabled={loading}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 font-medium transition flex items-center justify-center gap-2 shadow-sm">
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 font-medium transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              >
                 {loading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

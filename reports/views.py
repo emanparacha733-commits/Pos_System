@@ -26,11 +26,6 @@ from .serializers import ExpenseSerializer
 # ─────────────────────────────────────────
 
 def get_date_range(request):
-    """
-    Frontend se aane wale period params handle karta hai.
-    period: today | week | month | quarter | year | custom
-    custom ke liye: date_from + date_to
-    """
     period    = request.query_params.get('period', 'month')
     now       = timezone.now()
     today     = now.date()
@@ -58,7 +53,7 @@ def get_date_range(request):
         try:
             from datetime import datetime
             start = timezone.make_aware(datetime.strptime(date_from, '%Y-%m-%d'))
-            end   = timezone.make_aware(datetime.strptime(date_to,   '%Y-%m-%d').replace(hour=23, minute=59, second=59))
+            end   = timezone.make_aware(datetime.strptime(date_to, '%Y-%m-%d').replace(hour=23, minute=59, second=59))
         except (TypeError, ValueError):
             start = now - timedelta(days=30)
             end   = now
@@ -66,7 +61,6 @@ def get_date_range(request):
         start = now - timedelta(days=30)
         end   = now
 
-    # Previous period (delta calculation ke liye)
     duration   = end - start
     prev_start = start - duration
     prev_end   = start
@@ -75,7 +69,6 @@ def get_date_range(request):
 
 
 def delta_pct(current, previous):
-    """Period-over-period % change"""
     try:
         if previous and previous != 0:
             return round(((float(current) - float(previous)) / float(previous)) * 100, 1)
@@ -105,15 +98,15 @@ class OverviewReportView(APIView):
         orders      = Order.objects.filter(created_at__gte=start, created_at__lte=end, status='paid')
         prev_orders = Order.objects.filter(created_at__gte=prev_start, created_at__lte=prev_end, status='paid')
 
-        total_revenue = orders.aggregate(v=Coalesce(Sum('total'), Value(0, output_field=DecimalField())))['v']
-        prev_revenue  = prev_orders.aggregate(v=Coalesce(Sum('total'), Value(0, output_field=DecimalField())))['v']
-        total_orders  = orders.count()
+        total_revenue     = orders.aggregate(v=Coalesce(Sum('total'), Value(0, output_field=DecimalField())))['v']
+        prev_revenue      = prev_orders.aggregate(v=Coalesce(Sum('total'), Value(0, output_field=DecimalField())))['v']
+        total_orders      = orders.count()
         prev_total_orders = prev_orders.count()
-        items_sold    = OrderItem.objects.filter(order__in=orders).aggregate(v=Coalesce(Sum('qty'), Value(0)))['v']
-        avg_order_value = round(total_revenue / total_orders, 2) if total_orders else 0
-        prev_aov        = round(prev_revenue  / prev_total_orders, 2) if prev_total_orders else 0
+        items_sold        = OrderItem.objects.filter(order__in=orders).aggregate(v=Coalesce(Sum('qty'), Value(0)))['v']
+        avg_order_value   = round(total_revenue / total_orders, 2) if total_orders else 0
+        prev_aov          = round(prev_revenue  / prev_total_orders, 2) if prev_total_orders else 0
 
-        # Sales trend (daily)
+        # Sales trend
         period = request.query_params.get('period', 'month')
         trunc  = get_trunc(period)
         sales_trend = (
@@ -127,15 +120,16 @@ class OverviewReportView(APIView):
             for r in sales_trend
         ]
 
-        # Category mix
+        # ✅ FIX 1: product__category → product__category__name
         category_mix = (
             OrderItem.objects.filter(order__in=orders)
-            .values(name=F('product__category'))
+            .values(name=F('product__category__name'))
             .annotate(value=Coalesce(Sum('total_price'), Value(0, output_field=DecimalField())))
             .order_by('-value')
         )
+        # ✅ FIX 2: None handle karo — int ya None dono pe crash nahi hoga
         category_data = [
-            {'name': r['name'].capitalize(), 'value': float(r['value'])}
+            {'name': (str(r['name']) if r['name'] else 'Uncategorized').capitalize(), 'value': float(r['value'])}
             for r in category_mix
         ]
 
@@ -143,7 +137,7 @@ class OverviewReportView(APIView):
             'total_revenue':   float(total_revenue),
             'revenue_delta':   delta_pct(total_revenue, prev_revenue),
             'total_orders':    total_orders,
-            'orders_delta':    delta_pct(total_orders,  prev_total_orders),
+            'orders_delta':    delta_pct(total_orders, prev_total_orders),
             'items_sold':      items_sold,
             'avg_order_value': float(avg_order_value),
             'aov_delta':       delta_pct(avg_order_value, prev_aov),
@@ -175,15 +169,10 @@ class SalesReportView(APIView):
             .order_by('label')
         )
 
-        # COGS per day
         result = []
         for row in daily:
             day_label = row['label']
-            day_items = OrderItem.objects.filter(
-                order__in=orders.filter(**{f'created_at__date': day_label} if period not in ('quarter','year') else {}),
-            ).select_related('product')
 
-            # For month/quarter/year we group by truncated date
             if period in ('today', 'week', 'month'):
                 day_items = OrderItem.objects.filter(
                     order__status='paid',
@@ -196,13 +185,10 @@ class SalesReportView(APIView):
                     order__created_at__month=day_label.month,
                 ).select_related('product')
 
-            cogs = sum(
-                float(item.qty) * float(item.product.cost_price or 0)
-                for item in day_items
-            )
-            revenue     = float(row['revenue'])
-            gross_profit= revenue - cogs
-            margin      = round((gross_profit / revenue) * 100, 1) if revenue > 0 else 0
+            cogs         = sum(float(item.qty) * float(item.product.cost_price or 0) for item in day_items)
+            revenue      = float(row['revenue'])
+            gross_profit = revenue - cogs
+            margin       = round((gross_profit / revenue) * 100, 1) if revenue > 0 else 0
 
             result.append({
                 'label':        str(day_label),
@@ -236,7 +222,7 @@ class TopProductsView(APIView):
                 'product__name',
                 'product__category',
                 'product__cost_price',
-                'product__retail_price',
+                'product__price',           # ✅ FIX 3: retail_price → price
             )
             .annotate(
                 units_sold=Sum('qty'),
@@ -255,15 +241,15 @@ class TopProductsView(APIView):
             margin     = round((profit / revenue) * 100, 1) if revenue > 0 else 0
 
             result.append({
-                'product_id':  r['product__id'],
-                'name':        r['product__name'],
-                'category':    r['product__category'],
-                'cost_price':  cost_price,
-                'sell_price':  float(r['product__retail_price'] or 0),
-                'units_sold':  units,
-                'revenue':     revenue,
-                'profit':      round(profit, 2),
-                'margin':      margin,
+                'product_id': r['product__id'],
+                'name':       r['product__name'],
+                'category':   r['product__category'],
+                'cost_price': cost_price,
+                'sell_price': float(r['product__price'] or 0),  # ✅ FIX 4: retail_price → price
+                'units_sold': units,
+                'revenue':    revenue,
+                'profit':     round(profit, 2),
+                'margin':     margin,
             })
 
         return Response({'best_sellers': result})
@@ -285,26 +271,19 @@ class ProfitReportView(APIView):
             orders.aggregate(v=Coalesce(Sum('total'), Value(0, output_field=DecimalField())))['v']
         )
 
-        # COGS
-        order_items = OrderItem.objects.filter(
-            order__in=orders
-        ).select_related('product')
-        total_cogs = sum(
-            float(i.qty) * float(i.product.cost_price or 0)
-            for i in order_items
-        )
+        order_items = OrderItem.objects.filter(order__in=orders).select_related('product')
+        total_cogs  = sum(float(i.qty) * float(i.product.cost_price or 0) for i in order_items)
 
-        # Expenses
-        expenses        = Expense.objects.filter(date__gte=start.date(), date__lte=end.date())
-        total_expenses  = float(expenses.aggregate(v=Coalesce(Sum('amount'), Value(0, output_field=DecimalField())))['v'])
-        gross_profit    = total_revenue - total_cogs
-        net_profit      = gross_profit  - total_expenses
-        avg_margin      = round((gross_profit / total_revenue) * 100, 1) if total_revenue > 0 else 0
+        expenses       = Expense.objects.filter(date__gte=start.date(), date__lte=end.date())
+        total_expenses = float(expenses.aggregate(v=Coalesce(Sum('amount'), Value(0, output_field=DecimalField())))['v'])
+        gross_profit   = total_revenue - total_cogs
+        net_profit     = gross_profit - total_expenses
+        avg_margin     = round((gross_profit / total_revenue) * 100, 1) if total_revenue > 0 else 0
 
-        # Per product
+        # ✅ FIX 5: retail_price → price
         per_product = (
             OrderItem.objects.filter(order__in=orders)
-            .values('product__name', 'product__category', 'product__cost_price', 'product__retail_price')
+            .values('product__name', 'product__category', 'product__cost_price', 'product__price')
             .annotate(
                 units_sold=Sum('qty'),
                 revenue=Coalesce(Sum('total_price'), Value(0, output_field=DecimalField())),
@@ -314,21 +293,21 @@ class ProfitReportView(APIView):
 
         profit_by_product = []
         for r in per_product:
-            rev   = float(r['revenue'])
-            units = r['units_sold'] or 0
-            cost  = float(r['product__cost_price'] or 0)
-            cogs  = cost * units
-            gp    = rev - cogs
-            margin= round((gp / rev) * 100, 1) if rev > 0 else 0
+            rev    = float(r['revenue'])
+            units  = r['units_sold'] or 0
+            cost   = float(r['product__cost_price'] or 0)
+            cogs   = cost * units
+            gp     = rev - cogs
+            margin = round((gp / rev) * 100, 1) if rev > 0 else 0
             profit_by_product.append({
-                'name':        r['product__name'],
-                'category':    r['product__category'],
-                'cost_price':  cost,
-                'sell_price':  float(r['product__retail_price'] or 0),
-                'units_sold':  units,
-                'revenue':     rev,
-                'gross_profit':round(gp, 2),
-                'margin':      margin,
+                'name':         r['product__name'],
+                'category':     r['product__category'],
+                'cost_price':   cost,
+                'sell_price':   float(r['product__price'] or 0),  # ✅ FIX 6: retail_price → price
+                'units_sold':   units,
+                'revenue':      rev,
+                'gross_profit': round(gp, 2),
+                'margin':       margin,
             })
 
         expenses_by_category = list(
@@ -338,13 +317,13 @@ class ProfitReportView(APIView):
         )
 
         return Response({
-            'gross_profit':          round(gross_profit, 2),
-            'net_profit':            round(net_profit, 2),
-            'total_cogs':            round(total_cogs, 2),
-            'total_expenses':        round(total_expenses, 2),
-            'avg_margin':            avg_margin,
-            'profit_by_product':     profit_by_product,
-            'expenses_by_category':  expenses_by_category,
+            'gross_profit':         round(gross_profit, 2),
+            'net_profit':           round(net_profit, 2),
+            'total_cogs':           round(total_cogs, 2),
+            'total_expenses':       round(total_expenses, 2),
+            'avg_margin':           avg_margin,
+            'profit_by_product':    profit_by_product,
+            'expenses_by_category': expenses_by_category,
         })
 
 
@@ -358,7 +337,7 @@ class SupplierReportView(APIView):
         start, end, _, _ = get_date_range(request)
 
         suppliers = Supplier.objects.filter(is_deleted=False, is_active=True)
-        result = []
+        result    = []
 
         for supplier in suppliers:
             pos = PurchaseOrder.objects.filter(
@@ -405,43 +384,30 @@ class CustomerReportView(APIView):
             status='paid',
         )
 
-        # Customer wise group
-        # customer=None wale walk-in hain — unhe alag handle karo
         customer_data = (
             orders
             .values(
                 'customer__id',
                 'customer__name',
                 'customer__phone',
-                'customer__customer_type',   # Customer model se
+                'customer__customer_type',
             )
             .annotate(
                 total_orders=Count('id'),
                 total_spent=Coalesce(Sum('total'), Value(0, output_field=DecimalField())),
-                last_purchase=Sum('created_at'),   # placeholder — overridden below
             )
             .order_by('-total_spent')
         )
 
-        # last_purchase ke liye alag query (F() annotate datetime pe aggregate nahi hoti)
-        last_purchase_map = {
-            r['customer__id']: r['lp']
-            for r in orders.values('customer__id')
-                           .annotate(lp=F('created_at'))
-                           .order_by('customer__id', '-created_at')
-                           .distinct('customer__id')
-        } if hasattr(Order, 'customer_id') else {}
-
         result = []
         seen   = set()
         for r in customer_data:
-            cid   = r.get('customer__id')
-            key   = cid or 'walkin'
+            cid = r.get('customer__id')
+            key = cid or 'walkin'
             if key in seen:
                 continue
             seen.add(key)
 
-            # Last purchase — fresh query
             lp_qs = orders.filter(customer_id=cid).order_by('-created_at').values_list('created_at', flat=True).first()
 
             spent = float(r['total_spent'])
@@ -475,9 +441,6 @@ class TaxReportView(APIView):
             status='paid',
         )
 
-        # Order mein discount_amount field nahi — discount_type + discount_value hai
-        # Actual discount = subtotal - total - tax_amount
-        # Formula: discount = subtotal - (total - tax_amount)
         monthly = (
             orders.annotate(month=TruncMonth('created_at'))
             .values('month')
@@ -491,14 +454,13 @@ class TaxReportView(APIView):
 
         tax_rows = []
         for r in monthly:
-            gross    = float(r['gross_sales'])
-            tax      = float(r['tax_amount'])
-            net_tot  = float(r['net_total'])
-            # discount = subtotal - total + tax  (kyunki total = subtotal - discount + tax)
-            disc     = round(gross - net_tot + tax, 2)
-            taxable  = gross - disc
-            tax_rate = round((tax / taxable) * 100, 1) if taxable > 0 else 0
-            net      = taxable - tax
+            gross   = float(r['gross_sales'])
+            tax     = float(r['tax_amount'])
+            net_tot = float(r['net_total'])
+            disc    = round(gross - net_tot + tax, 2)
+            taxable = gross - disc
+            tax_rate= round((tax / taxable) * 100, 1) if taxable > 0 else 0
+            net     = taxable - tax
 
             tax_rows.append({
                 'period':         r['month'].strftime('%b %Y'),
@@ -515,11 +477,11 @@ class TaxReportView(APIView):
             tax=  Coalesce(Sum('tax_amount'), Value(0, output_field=DecimalField())),
             nett= Coalesce(Sum('total'),      Value(0, output_field=DecimalField())),
         )
-        gross    = float(totals_qs['gross'])
-        tax      = float(totals_qs['tax'])
-        nett     = float(totals_qs['nett'])
-        disc     = gross - nett + tax
-        taxable  = gross - max(disc, 0)
+        gross   = float(totals_qs['gross'])
+        tax     = float(totals_qs['tax'])
+        nett    = float(totals_qs['nett'])
+        disc    = gross - nett + tax
+        taxable = gross - max(disc, 0)
 
         return Response({
             'taxable_sales': round(taxable, 2),
