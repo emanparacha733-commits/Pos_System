@@ -297,7 +297,7 @@ const POS = () => {
   const [useLoyalty, setUseLoyalty]           = useState(false)
   const [categoryDiscounts, setCategoryDiscounts] = useState({})
   const [barcodeFlash, setBarcodeFlash]       = useState(false)
-  const [showCart, setShowCart]               = useState(false) // mobile cart toggle
+  const [showCart, setShowCart]               = useState(false)
 
   useEffect(() => {
     fetchProducts(); fetchCategories(); fetchCustomers(); fetchBusiness()
@@ -378,8 +378,9 @@ const POS = () => {
   const maxLoyaltyDisc        = Math.min(availableLoyalty * LOYALTY_VALUE, afterDiscount * 0.5)
   const loyaltyDiscount       = useLoyalty && selectedCustomer ? maxLoyaltyDisc : 0
   const afterLoyalty          = afterDiscount - loyaltyDiscount
-  const taxAmount             = (afterLoyalty * taxRate) / 100
-  const total                 = afterLoyalty + taxAmount
+  // ✅ FIX 1: Round to 2 decimal places to avoid backend validation error
+  const taxAmount             = parseFloat(((afterLoyalty * taxRate) / 100).toFixed(2))
+  const total                 = parseFloat((afterLoyalty + taxAmount).toFixed(2))
   const pointsEarned          = Math.floor(total / 100) * LOYALTY_RATE
   const cartCount             = cart.reduce((s, i) => s + i.qty, 0)
   const isWholesale           = selectedCustomer?.customer_type === 'wholesale'
@@ -412,14 +413,20 @@ const POS = () => {
 
       const res = await API.post('/pos/orders/', {
         customer:          selectedCustomer?.id || null,
-        items:             cart.map(i => ({ product: i.id, qty: i.qty, unit_price: i.price, total_price: i.price * i.qty })),
-        subtotal,
-        category_discount: totalCatDiscount,
+        items:             cart.map(i => ({
+          product:     i.id,
+          qty:         i.qty,
+          unit_price:  parseFloat(Number(i.price).toFixed(2)),
+          total_price: parseFloat((i.price * i.qty).toFixed(2)),
+        })),
+        subtotal:          parseFloat(subtotal.toFixed(2)),
+        category_discount: parseFloat(totalCatDiscount.toFixed(2)),
         discount_type:     discountType,
-        discount_value:    discount,
-        loyalty_discount:  loyaltyDiscount,
+        discount_value:    parseFloat(Number(discount).toFixed(2)),
+        loyalty_discount:  parseFloat(loyaltyDiscount.toFixed(2)),
+        // ✅ FIX 1: Already rounded above, sending clean 2-decimal values
         tax_amount:        taxAmount,
-        total,
+        total:             total,
         payment_method:    splitPayments ? 'split' : paymentMethod,
         split_payments:    splitPayments || null,
         status:            'paid',
@@ -444,167 +451,173 @@ const POS = () => {
     }
   }
 
-  // ─── CART PANEL (shared between desktop sidebar & mobile drawer) ─
+  // ─── CART PANEL ──────────────────────────────────────────────────
   const CartPanel = () => (
-    <div className="flex flex-col h-full bg-white">
-      {/* Cart Header */}
-      <div className="px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <MdShoppingCart size={18} className="text-blue-600" />
-            <span className="font-bold text-gray-800 text-sm">Cart</span>
+    <div style={{display:'flex', flexDirection:'column', height:'100%', background:'white', overflow:'hidden'}}>
+
+      {/* ── STICKY HEADER ── */}
+      <div style={{flexShrink:0, padding:'12px 16px', borderBottom:'1px solid #f3f4f6'}}>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12}}>
+          <div style={{display:'flex', alignItems:'center', gap:8}}>
+            <MdShoppingCart size={18} color="#2563eb" />
+            <span style={{fontWeight:700, fontSize:14, color:'#1f2937'}}>Cart</span>
             {cartCount > 0 && (
-              <span className="bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{cartCount}</span>
+              <span style={{background:'#2563eb', color:'white', fontSize:11, fontWeight:700, borderRadius:'50%', width:20, height:20, display:'flex', alignItems:'center', justifyContent:'center'}}>{cartCount}</span>
             )}
             {isWholesale && (
-              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                <MdStorefront size={11} /> WS
-              </span>
+              <span style={{fontSize:11, background:'#ede9fe', color:'#7c3aed', padding:'2px 8px', borderRadius:999, fontWeight:600}}>WS</span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div style={{display:'flex', alignItems:'center', gap:8}}>
             {heldOrders.length > 0 && (
               <button onClick={() => setShowHeld(true)}
-                className="relative flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-xs font-semibold hover:bg-amber-100 transition">
+                style={{display:'flex', alignItems:'center', gap:4, padding:'4px 10px', background:'#fffbeb', border:'1px solid #fcd34d', color:'#b45309', borderRadius:8, fontSize:11, fontWeight:600, cursor:'pointer'}}>
                 <MdPause size={14} /> {heldOrders.length}
               </button>
             )}
             {cart.length > 0 && (
-              <button onClick={() => setCart([])} className="text-xs text-red-400 hover:text-red-600 font-medium transition">Clear</button>
+              <button onClick={() => setCart([])} style={{fontSize:11, color:'#f87171', fontWeight:500, background:'none', border:'none', cursor:'pointer'}}>Clear</button>
             )}
           </div>
         </div>
         <CustomerSelect customers={customers} selected={selectedCustomer} onSelect={(c) => { setSelectedCustomer(c); setUseLoyalty(false) }} />
       </div>
 
-      {/* Cart Items */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {cart.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-center">
-            <MdShoppingCart size={36} className="text-gray-200 mb-2" />
-            <p className="text-gray-300 text-sm">Cart is empty</p>
-            <p className="text-gray-200 text-xs mt-1">Click products to add</p>
+      {/* ── SCROLLABLE MIDDLE (cart items + discount + tax + loyalty + totals + payment) ── */}
+      <div style={{flex:1, overflowY:'auto', overflowX:'hidden'}}>
+
+        {/* Cart Items */}
+        <div style={{padding:'12px 16px', display:'flex', flexDirection:'column', gap:8}}>
+          {cart.length === 0 ? (
+            <div style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:100, textAlign:'center'}}>
+              <MdShoppingCart size={36} color="#e5e7eb" />
+              <p style={{color:'#d1d5db', fontSize:13, marginTop:8}}>Cart is empty</p>
+              <p style={{color:'#e5e7eb', fontSize:11, marginTop:4}}>Click products to add</p>
+            </div>
+          ) : cart.map(item => {
+            const catD = getCatDiscount(item)
+            return (
+              <div key={item.id} style={{display:'flex', alignItems:'center', gap:8, background:'#f9fafb', borderRadius:12, padding:10}}>
+                <div style={{flex:1, minWidth:0}}>
+                  <p style={{fontSize:11, fontWeight:600, color:'#1f2937', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{item.name}</p>
+                  <div style={{display:'flex', alignItems:'center', gap:6, marginTop:2}}>
+                    <span style={{fontSize:11, color:'#2563eb', fontWeight:700}}>Rs. {Number(item.price).toLocaleString()}</span>
+                    {catD > 0 && <span style={{fontSize:11, color:'#059669'}}>(-{((catD/(item.price*item.qty))*100).toFixed(0)}%)</span>}
+                  </div>
+                </div>
+                <div style={{display:'flex', alignItems:'center', gap:4, flexShrink:0}}>
+                  <button onClick={() => updateQty(item.id, -1)} style={{width:24, height:24, background:'#e5e7eb', border:'none', borderRadius:8, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}><MdRemove size={12} /></button>
+                  <span style={{fontSize:11, fontWeight:900, width:24, textAlign:'center', color:'#1f2937'}}>{item.qty}</span>
+                  <button onClick={() => updateQty(item.id, 1)} style={{width:24, height:24, background:'#dbeafe', border:'none', borderRadius:8, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#2563eb'}}><MdAdd size={12} /></button>
+                </div>
+                <button onClick={() => removeFromCart(item.id)} style={{width:24, height:24, background:'none', border:'none', cursor:'pointer', color:'#fca5a5', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center'}}>
+                  <MdDelete size={14} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Discount + Tax */}
+        <div style={{padding:'12px 16px', borderTop:'1px solid #f3f4f6', display:'flex', flexDirection:'column', gap:12}}>
+          <div>
+            <p style={{fontSize:10, fontWeight:600, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6}}>Discount</p>
+            <div style={{display:'flex', gap:6}}>
+              <button onClick={() => setDiscountType('percent')}
+                style={{padding:'6px 12px', borderRadius:8, fontSize:11, fontWeight:700, border:'none', cursor:'pointer', background: discountType==='percent' ? '#2563eb' : '#f3f4f6', color: discountType==='percent' ? 'white' : '#6b7280'}}>%</button>
+              <button onClick={() => setDiscountType('flat')}
+                style={{padding:'6px 12px', borderRadius:8, fontSize:11, fontWeight:700, border:'none', cursor:'pointer', background: discountType==='flat' ? '#2563eb' : '#f3f4f6', color: discountType==='flat' ? 'white' : '#6b7280'}}>Rs.</button>
+              <input type="number" value={discount} min="0"
+                onChange={e => setDiscount(Number(e.target.value))}
+                style={{flex:1, padding:'6px 12px', border:'1px solid #e5e7eb', borderRadius:8, fontSize:11, outline:'none', background:'#f9fafb'}} />
+            </div>
           </div>
-        ) : cart.map(item => {
-          const catD = getCatDiscount(item)
-          return (
-            <div key={item.id} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 group">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-800 truncate">{item.name}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-xs text-blue-600 font-bold">Rs. {Number(item.price).toLocaleString()}</span>
-                  {catD > 0 && <span className="text-xs text-emerald-600">(-{((catD/(item.price*item.qty))*100).toFixed(0)}%)</span>}
+          <div>
+            <p style={{fontSize:10, fontWeight:600, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6}}>Tax Rate (%)</p>
+            <input type="number" value={taxRate} min="0" max="100"
+              onChange={e => setTaxRate(Number(e.target.value))}
+              style={{width:'100%', padding:'6px 12px', border:'1px solid #e5e7eb', borderRadius:8, fontSize:11, outline:'none', background:'#f9fafb', boxSizing:'border-box'}} />
+          </div>
+          {selectedCustomer && availableLoyalty > 0 && (
+            <div onClick={() => setUseLoyalty(!useLoyalty)}
+              style={{display:'flex', alignItems:'center', justifyContent:'space-between', borderRadius:12, padding:12, cursor:'pointer', border: useLoyalty ? '1px solid #fcd34d' : '1px solid #e5e7eb', background: useLoyalty ? '#fffbeb' : '#f9fafb'}}>
+              <div style={{display:'flex', alignItems:'center', gap:8}}>
+                <MdStar size={16} color={useLoyalty ? '#f59e0b' : '#d1d5db'} />
+                <div>
+                  <p style={{fontSize:11, fontWeight:600, color:'#374151'}}>Loyalty Points</p>
+                  <p style={{fontSize:11, color:'#9ca3af'}}>{availableLoyalty} pts available</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-lg transition"><MdRemove size={12} /></button>
-                <span className="text-xs font-black w-6 text-center text-gray-800">{item.qty}</span>
-                <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition"><MdAdd size={12} /></button>
-              </div>
-              <button onClick={() => removeFromCart(item.id)} className="w-6 h-6 flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition flex-shrink-0">
-                <MdDelete size={14} />
-              </button>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Discount + Tax */}
-      <div className="px-4 py-3 border-t border-gray-100 space-y-3">
-        <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Discount</p>
-          <div className="flex gap-1.5">
-            <button onClick={() => setDiscountType('percent')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${discountType === 'percent' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>%</button>
-            <button onClick={() => setDiscountType('flat')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${discountType === 'flat' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>Rs.</button>
-            <input type="number" value={discount} min="0"
-              onChange={e => setDiscount(Number(e.target.value))}
-              className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" />
-          </div>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Tax Rate (%)</p>
-          <input type="number" value={taxRate} min="0" max="100"
-            onChange={e => setTaxRate(Number(e.target.value))}
-            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" />
-        </div>
-
-        {/* Loyalty */}
-        {selectedCustomer && availableLoyalty > 0 && (
-          <div onClick={() => setUseLoyalty(!useLoyalty)}
-            className={`flex items-center justify-between rounded-xl p-3 cursor-pointer transition border ${useLoyalty ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200 hover:border-amber-200'}`}>
-            <div className="flex items-center gap-2">
-              <MdStar size={16} className={useLoyalty ? 'text-amber-500' : 'text-gray-300'} />
-              <div>
-                <p className="text-xs font-semibold text-gray-700">Loyalty Points</p>
-                <p className="text-xs text-gray-400">{availableLoyalty} pts available</p>
+              <div style={{textAlign:'right'}}>
+                {useLoyalty
+                  ? <p style={{fontSize:11, fontWeight:700, color:'#d97706'}}>-Rs. {maxLoyaltyDisc.toFixed(0)}</p>
+                  : <p style={{fontSize:11, color:'#d1d5db'}}>Tap to use</p>
+                }
+                <div style={{width:32, height:16, borderRadius:999, marginTop:4, background: useLoyalty ? '#fbbf24' : '#e5e7eb'}} />
               </div>
             </div>
-            <div className="text-right">
-              {useLoyalty
-                ? <p className="text-xs font-bold text-amber-600">-Rs. {maxLoyaltyDisc.toFixed(0)}</p>
-                : <p className="text-xs text-gray-300">Tap to use</p>
-              }
-              <div className={`w-8 h-4 rounded-full mt-1 transition-colors ${useLoyalty ? 'bg-amber-400' : 'bg-gray-200'}`} />
+          )}
+        </div>
+
+        {/* Totals */}
+        <div style={{padding:'12px 16px', borderTop:'1px solid #f3f4f6', background:'#f9fafb', display:'flex', flexDirection:'column', gap:6}}>
+          <div style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'#6b7280'}}><span>Subtotal</span><span>Rs. {subtotal.toLocaleString()}</span></div>
+          {totalCatDiscount > 0 && <div style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'#7c3aed'}}><span>Category Disc.</span><span>- Rs. {totalCatDiscount.toFixed(0)}</span></div>}
+          {discountAmount > 0 && <div style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'#ef4444'}}><span>Discount</span><span>- Rs. {discountAmount.toFixed(0)}</span></div>}
+          {loyaltyDiscount > 0 && <div style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'#d97706'}}><span>Loyalty</span><span>- Rs. {loyaltyDiscount.toFixed(0)}</span></div>}
+          {taxAmount > 0 && <div style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'#6b7280'}}><span>Tax ({taxRate}%)</span><span>+ Rs. {taxAmount.toFixed(0)}</span></div>}
+          <div style={{display:'flex', justifyContent:'space-between', fontWeight:900, color:'#111827', fontSize:16, paddingTop:8, borderTop:'1px solid #e5e7eb'}}>
+            <span>Total</span><span style={{color:'#2563eb'}}>Rs. {total.toLocaleString()}</span>
+          </div>
+          {pointsEarned > 0 && <p style={{textAlign:'center', fontSize:11, color:'#f59e0b', fontWeight:500}}>⭐ Will earn {pointsEarned} loyalty points</p>}
+        </div>
+
+        {/* Payment */}
+        <div style={{padding:'12px 16px', borderTop:'1px solid #f3f4f6'}}>
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
+            <p style={{fontSize:10, fontWeight:600, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.05em'}}>Payment</p>
+            <button onClick={() => setShowSplit(true)}
+              style={{display:'flex', alignItems:'center', gap:4, fontSize:11, color:'#2563eb', fontWeight:600, background:'none', border:'none', cursor:'pointer'}}>
+              <MdSplitscreen size={13} /> Split
+            </button>
+          </div>
+          {splitPayments ? (
+            <div style={{background:'#eff6ff', borderRadius:12, padding:12, border:'1px solid #bfdbfe', display:'flex', flexDirection:'column', gap:4}}>
+              {splitPayments.map((sp, i) => (
+                <div key={i} style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'#374151'}}>
+                  <span>{sp.icon} {sp.label}</span><span style={{fontWeight:600}}>Rs. {sp.amount.toLocaleString()}</span>
+                </div>
+              ))}
+              <button onClick={() => setSplitPayments(null)} style={{fontSize:11, color:'#f87171', background:'none', border:'none', cursor:'pointer', marginTop:4}}>✕ Remove Split</button>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Totals */}
-      <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 space-y-1.5">
-        <div className="flex justify-between text-xs text-gray-500"><span>Subtotal</span><span>Rs. {subtotal.toLocaleString()}</span></div>
-        {totalCatDiscount > 0 && <div className="flex justify-between text-xs text-purple-600"><span>Category Disc.</span><span>- Rs. {totalCatDiscount.toFixed(0)}</span></div>}
-        {discountAmount > 0 && <div className="flex justify-between text-xs text-red-500"><span>Discount</span><span>- Rs. {discountAmount.toFixed(0)}</span></div>}
-        {loyaltyDiscount > 0 && <div className="flex justify-between text-xs text-amber-600"><span>Loyalty</span><span>- Rs. {loyaltyDiscount.toFixed(0)}</span></div>}
-        {taxAmount > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Tax ({taxRate}%)</span><span>+ Rs. {taxAmount.toFixed(0)}</span></div>}
-        <div className="flex justify-between font-black text-gray-900 text-base pt-2 border-t border-gray-200">
-          <span>Total</span><span className="text-blue-600">Rs. {total.toLocaleString()}</span>
+          ) : (
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6}}>
+              {PAYMENT_METHODS.map(m => (
+                <button key={m.id} onClick={() => setPaymentMethod(m.id)}
+                  style={{display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'8px 0', borderRadius:12, fontSize:11, fontWeight:600, border:'none', cursor:'pointer',
+                    background: paymentMethod===m.id ? '#2563eb' : '#f3f4f6',
+                    color: paymentMethod===m.id ? 'white' : '#4b5563'}}>
+                  <span>{m.icon}</span> {m.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        {pointsEarned > 0 && <p className="text-center text-xs text-amber-500 font-medium">⭐ Will earn {pointsEarned} loyalty points</p>}
+
+        {/* Spacer so last item not hidden behind sticky footer */}
+        <div style={{height:8}} />
       </div>
 
-      {/* Payment Method */}
-      <div className="px-4 py-3 border-t border-gray-100">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Payment</p>
-          <button onClick={() => setShowSplit(true)}
-            className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:text-blue-700 transition">
-            <MdSplitscreen size={13} /> Split
-          </button>
-        </div>
-        {splitPayments ? (
-          <div className="bg-blue-50 rounded-xl p-3 border border-blue-100 space-y-1">
-            {splitPayments.map((sp, i) => (
-              <div key={i} className="flex justify-between text-xs text-gray-700">
-                <span>{sp.icon} {sp.label}</span><span className="font-semibold">Rs. {sp.amount.toLocaleString()}</span>
-              </div>
-            ))}
-            <button onClick={() => setSplitPayments(null)} className="w-full text-xs text-red-400 hover:text-red-600 transition mt-1 font-medium">✕ Remove Split</button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-1.5">
-            {PAYMENT_METHODS.map(m => (
-              <button key={m.id} onClick={() => setPaymentMethod(m.id)}
-                className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition ${paymentMethod === m.id ? 'bg-blue-600 text-white shadow-sm shadow-blue-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                <span>{m.icon}</span> {m.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="px-4 pb-4 pt-2 flex flex-col gap-2">
+      {/* ── STICKY BOTTOM BUTTONS ── */}
+      <div style={{flexShrink:0, padding:'12px 16px 16px', borderTop:'1px solid #f3f4f6', display:'flex', flexDirection:'column', gap:8, background:'white'}}>
         <button onClick={holdOrder} disabled={!cart.length}
-          className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-amber-300 text-amber-600 rounded-xl text-sm font-semibold hover:bg-amber-50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'10px 0', border:'2px solid #fcd34d', color:'#d97706', borderRadius:12, fontSize:13, fontWeight:600, background:'white', cursor: cart.length ? 'pointer' : 'not-allowed', opacity: cart.length ? 1 : 0.4}}>
           <MdPause size={16} /> Hold Order
         </button>
         <button onClick={handleCheckout} disabled={loading || !cart.length}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl text-sm font-black hover:bg-blue-700 active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-200">
+          style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'12px 0', background: (loading||!cart.length) ? '#93c5fd' : '#2563eb', color:'white', border:'none', borderRadius:12, fontSize:13, fontWeight:900, cursor: (loading||!cart.length) ? 'not-allowed' : 'pointer', boxShadow:'0 4px 14px rgba(37,99,235,0.3)'}}>
           {loading
-            ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing...</>
+            ? <><div style={{width:16, height:16, border:'2px solid rgba(255,255,255,0.4)', borderTop:'2px solid white', borderRadius:'50%', animation:'spin 0.8s linear infinite'}} /> Processing...</>
             : <><MdPointOfSale size={18} /> Checkout — Rs. {total.toLocaleString()}</>
           }
         </button>
@@ -617,6 +630,7 @@ const POS = () => {
       <style>{`
         @keyframes barcode-flash { 0%,100%{background:transparent} 50%{background:#dcfce7} }
         .barcode-flash { animation: barcode-flash 0.6s ease-out }
+        @keyframes spin { to { transform: rotate(360deg) } }
       `}</style>
 
       {/* ── DESKTOP LAYOUT ── */}
@@ -719,7 +733,7 @@ const POS = () => {
         </div>
 
         {/* Right — Cart */}
-        <div className="w-80 flex-shrink-0 rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="w-80 flex-shrink-0 rounded-2xl border border-gray-100 shadow-sm overflow-hidden" style={{height:'calc(100vh - 80px)'}}>
           <CartPanel />
         </div>
       </div>
@@ -793,13 +807,13 @@ const POS = () => {
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowCart(false)} />
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[92vh]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <span className="font-black text-gray-900">Your Cart</span>
               <button onClick={() => setShowCart(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500">
                 <MdClose size={18} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <CartPanel />
             </div>
           </div>
