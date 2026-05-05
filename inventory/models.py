@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.db.models import F
+from django.core.validators import MinValueValidator
 
 
 # ─────────────────────────────────────────
@@ -53,44 +54,81 @@ class Warehouse(models.Model):
 
 
 # ─────────────────────────────────────────
+# CATEGORY
+# ─────────────────────────────────────────
+class Category(models.Model):
+    name        = models.CharField(max_length=100)
+    icon        = models.CharField(max_length=50, blank=True)
+    description = models.TextField(blank=True)
+    is_active   = models.BooleanField(default=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name_plural = "Categories"
+        ordering = ['name']
+
+
+# ─────────────────────────────────────────
 # PRODUCT
 # ─────────────────────────────────────────
 class Product(models.Model):
-    CATEGORY_CHOICES = [
-        ('book',       'Book'),
-        ('stationery', 'Stationery'),
-        ('other',      'Other'),
+
+    UNIT_CHOICES = [
+        ('piece',  'Piece'),
+        ('kg',     'Kilogram'),
+        ('gram',   'Gram'),
+        ('liter',  'Liter'),
+        ('meter',  'Meter'),
+        ('box',    'Box'),
+        ('dozen',  'Dozen'),
     ]
 
-    name                = models.CharField(max_length=255)
-    sku                 = models.CharField(max_length=100, unique=True, blank=True)
-    barcode             = models.CharField(max_length=100, unique=True, blank=True, null=True)
-    category            = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='book')
-    supplier            = models.ForeignKey(
-                            Supplier, on_delete=models.SET_NULL,
-                            null=True, blank=True, related_name='products'
-                          )
-    description         = models.TextField(blank=True)
+    # Basic Info
+    name            = models.CharField(max_length=255)
+    sku             = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    barcode         = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    description     = models.TextField(blank=True)
+    image           = models.ImageField(upload_to='products/', blank=True, null=True)
 
-    cost_price          = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    retail_price        = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    wholesale_price     = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    # Category & Supplier
+    category        = models.ForeignKey(
+                        Category, on_delete=models.SET_NULL,
+                        null=True, blank=True, related_name='products'
+                      )
+    supplier        = models.ForeignKey(
+                        Supplier, on_delete=models.SET_NULL,
+                        null=True, blank=True, related_name='products'
+                      )
 
+    # Pricing
+    cost_price      = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    retail_price    = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    tax_rate        = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    discount        = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+
+    # Stock
     stock_quantity      = models.IntegerField(default=0)
     low_stock_threshold = models.IntegerField(default=10)
     reorder_quantity    = models.IntegerField(default=50)
+    unit                = models.CharField(max_length=20, choices=UNIT_CHOICES, default='piece')
 
-    is_active           = models.BooleanField(default=True)
-    is_deleted          = models.BooleanField(default=False)
-    created_at          = models.DateTimeField(auto_now_add=True)
-    updated_at          = models.DateTimeField(auto_now=True)
+    # Flags
+    is_active       = models.BooleanField(default=True)
+    is_featured     = models.BooleanField(default=False)
+    is_deleted      = models.BooleanField(default=False)
+
+    created_at      = models.DateTimeField(auto_now_add=True)
+    updated_at      = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['name']
         indexes  = [
             models.Index(fields=['barcode']),
             models.Index(fields=['sku']),
-            models.Index(fields=['category']),
             models.Index(fields=['stock_quantity']),
         ]
 
@@ -113,11 +151,16 @@ class Product(models.Model):
             )
         return 0
 
+    @property
+    def discounted_price(self):
+        if self.discount > 0:
+            return round(float(self.retail_price) - (float(self.retail_price) * float(self.discount) / 100), 2)
+        return self.retail_price
+
     def save(self, *args, **kwargs):
         if not self.sku:
-            prefix   = self.category[:3].upper()
             ts       = str(timezone.now().timestamp()).replace('.', '')[-6:]
-            self.sku = f"{prefix}-{ts}"
+            self.sku = f"PRD-{ts}"
         super().save(*args, **kwargs)
 
 
@@ -172,7 +215,7 @@ class PurchaseOrder(models.Model):
     updated_at    = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"PO-{self.id:04d} | {self.supplier.name} | {self.get_status_display()}"
+        return f"PO-{self.id:04d} | {self.supplier.name if self.supplier else 'N/A'} | {self.get_status_display()}"
 
     def recalculate_total(self):
         from django.db.models import Sum

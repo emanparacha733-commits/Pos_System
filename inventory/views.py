@@ -1,4 +1,3 @@
-
 # inventory/views.py
 
 from rest_framework import viewsets, status, filters
@@ -14,6 +13,20 @@ from .serializers import *
 from .services import StockService, AuditService
 
 
+# ─────────────────────────────────────────
+# CATEGORY
+# ─────────────────────────────────────────
+class CategoryViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class   = CategorySerializer
+    queryset           = Category.objects.filter(is_active=True)
+    filter_backends    = [filters.SearchFilter]
+    search_fields      = ['name']
+
+
+# ─────────────────────────────────────────
+# SUPPLIER
+# ─────────────────────────────────────────
 class SupplierViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = SupplierSerializer
@@ -24,7 +37,6 @@ class SupplierViewSet(viewsets.ModelViewSet):
         return Supplier.objects.filter(is_deleted=False, is_active=True)
 
     def destroy(self, request, *args, **kwargs):
-        # Hard delete nahi — soft delete
         supplier = self.get_object()
         supplier.soft_delete()
         AuditService.log(
@@ -37,23 +49,26 @@ class SupplierViewSet(viewsets.ModelViewSet):
         return Response({'message': 'Supplier deleted'}, status=204)
 
 
+# ─────────────────────────────────────────
+# PRODUCT
+# ─────────────────────────────────────────
 class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = ProductSerializer
     filter_backends    = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields   = ['category', 'supplier', 'is_active']
+    filterset_fields   = ['category', 'supplier', 'is_active', 'is_featured']
     search_fields      = ['name', 'sku', 'barcode']
     ordering_fields    = ['name', 'stock_quantity', 'retail_price', 'created_at']
 
     def get_queryset(self):
-        return Product.objects.select_related('supplier').filter(is_deleted=False)
+        return Product.objects.select_related('supplier', 'category').filter(is_deleted=False)
 
     def update(self, request, *args, **kwargs):
-        product   = self.get_object()
-        old_data  = ProductSerializer(product).data
-        response  = super().update(request, *args, **kwargs)
-        new_data  = ProductSerializer(product).data
-
+        product  = self.get_object()
+        old_data = ProductSerializer(product).data
+        response = super().update(request, *args, **kwargs)
+        product.refresh_from_db()
+        new_data = ProductSerializer(product).data
         AuditService.log(
             user       = request.user,
             action     = 'update',
@@ -67,18 +82,22 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def low_stock(self, request):
-        products = self.get_queryset().filter(
-            stock_quantity__lte=models.F('low_stock_threshold'),
-            is_active=True
-        )
-        serializer = self.get_serializer(products, many=True)
-        return Response({'count': products.count(), 'products': serializer.data})
+        products = self.get_queryset().filter(is_active=True)
+        low = [p for p in products if p.is_low_stock]
+        serializer = self.get_serializer(low, many=True)
+        return Response({'count': len(low), 'products': serializer.data})
 
     @action(detail=False, methods=['get'])
     def out_of_stock(self, request):
         products = self.get_queryset().filter(stock_quantity=0, is_active=True)
         serializer = self.get_serializer(products, many=True)
         return Response({'count': products.count(), 'products': serializer.data})
+
+    @action(detail=False, methods=['get'])
+    def featured(self, request):
+        products = self.get_queryset().filter(is_active=True, is_featured=True)
+        serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def by_barcode(self, request):
@@ -95,6 +114,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         return Response(StockMovementSerializer(movements, many=True).data)
 
 
+# ─────────────────────────────────────────
+# PURCHASE ORDER
+# ─────────────────────────────────────────
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = PurchaseOrderSerializer
@@ -115,7 +137,6 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     @transaction.atomic
     def receive(self, request, pk=None):
-        """Maal receive — stock automatically update hoga"""
         po = self.get_object()
 
         if po.status == 'cancelled':
@@ -142,7 +163,6 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
                     'error': f"{item.product.name}: Max receive kar sakte hain {max_allowed}"
                 }, status=400)
 
-            # Stock service use karo
             StockService.receive_stock(
                 product   = item.product,
                 warehouse = po.warehouse,
@@ -156,12 +176,11 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             item.save()
 
             results.append({
-                'product':       item.product.name,
-                'qty_received':  qty_received,
-                'new_stock':     item.product.stock_quantity,
+                'product':      item.product.name,
+                'qty_received': qty_received,
+                'new_stock':    item.product.stock_quantity,
             })
 
-        # PO status update
         all_items = po.items.all()
         if all(i.is_fully_received for i in all_items):
             po.status = 'received'
@@ -179,9 +198,9 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         )
 
         return Response({
-            'message': 'Stock received successfully!',
+            'message':   'Stock received successfully!',
             'po_status': po.get_status_display(),
-            'items':   results,
+            'items':     results,
         })
 
     @action(detail=True, methods=['post'])
@@ -192,12 +211,20 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         po.status = 'cancelled'
         po.save()
         return Response({'message': 'Purchase order cancelled'})
-    
+
+
+# ─────────────────────────────────────────
+# WAREHOUSE
+# ─────────────────────────────────────────
 class WarehouseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = WarehouseSerializer
     queryset           = Warehouse.objects.filter(is_active=True)
 
+
+# ─────────────────────────────────────────
+# STOCK MOVEMENT
+# ─────────────────────────────────────────
 class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = StockMovementSerializer
@@ -211,11 +238,10 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['post'])
     def adjust(self, request):
-        """Manual stock adjustment"""
-        product_id = request.data.get('product_id')
+        product_id   = request.data.get('product_id')
         warehouse_id = request.data.get('warehouse_id')
-        quantity   = request.data.get('quantity')
-        reason     = request.data.get('reason', '')
+        quantity     = request.data.get('quantity')
+        reason       = request.data.get('reason', '')
 
         if quantity is None:
             return Response({'error': 'Quantity required'}, status=400)
@@ -246,6 +272,9 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(StockMovementSerializer(movement).data)
 
 
+# ─────────────────────────────────────────
+# LOW STOCK NOTIFICATION
+# ─────────────────────────────────────────
 class LowStockNotificationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class   = LowStockNotificationSerializer
@@ -257,10 +286,8 @@ class LowStockNotificationViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['post'])
     def resolve(self, request, pk=None):
-        notif            = self.get_object()
+        notif             = self.get_object()
         notif.is_resolved = True
         notif.resolved_at = timezone.now()
         notif.save()
         return Response({'message': 'Notification resolved'})
-    
-    

@@ -150,7 +150,6 @@ const HistoryModal = ({ customer, onClose }) => {
           </button>
         </div>
 
-        {/* Summary */}
         <div className="grid grid-cols-3 gap-3 p-4 border-b">
           <div className="bg-blue-50 rounded-xl p-3 text-center">
             <p className="text-xs text-gray-500">Total Orders</p>
@@ -158,7 +157,7 @@ const HistoryModal = ({ customer, onClose }) => {
           </div>
           <div className="bg-green-50 rounded-xl p-3 text-center">
             <p className="text-xs text-gray-500">Total Spent</p>
-            <p className="text-lg font-bold text-green-600">Rs. {totalSpent.toLocaleString()}</p>
+            <p className="text-base font-bold text-green-600">Rs. {totalSpent.toLocaleString()}</p>
           </div>
           <div className="bg-yellow-50 rounded-xl p-3 text-center">
             <p className="text-xs text-gray-500">Points</p>
@@ -166,7 +165,6 @@ const HistoryModal = ({ customer, onClose }) => {
           </div>
         </div>
 
-        {/* Orders List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
             <div className="text-center py-10 text-gray-400">Loading...</div>
@@ -240,22 +238,22 @@ const Customers = () => {
     <Layout>
       <div className="space-y-4">
 
-        {/* Header */}
-        <div className="flex justify-between items-center">
+        {/* ── Header ── */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Customers</h1>
             <p className="text-gray-500 text-sm">Manage your customer profiles</p>
           </div>
           <button
             onClick={() => { setEditCustomer(null); setCustomerModal(true) }}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition w-full sm:w-auto"
           >
             <MdAdd size={20} /> Add Customer
           </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* ── Stats ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl shadow-sm p-4">
             <div className="flex items-center gap-2 mb-1">
               <MdPerson size={18} className="text-blue-600" />
@@ -279,7 +277,7 @@ const Customers = () => {
           </div>
         </div>
 
-        {/* Search */}
+        {/* ── Search ── */}
         <div className="bg-white rounded-xl shadow-sm p-4">
           <div className="relative">
             <MdSearch className="absolute left-3 top-3 text-gray-400" size={20} />
@@ -293,75 +291,111 @@ const Customers = () => {
           </div>
         </div>
 
-        {/* Table */}
+        {/* ── Table + Mobile Cards ── */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-              <tr>
-                <th className="px-4 py-3 text-left">Customer</th>
-                <th className="px-4 py-3 text-left">Phone</th>
-                <th className="px-4 py-3 text-left">Email</th>
-                <th className="px-4 py-3 text-left">Loyalty Points</th>
-                <th className="px-4 py-3 text-left">Credit</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredCustomers.length === 0 ? (
+
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
                 <tr>
-                  <td colSpan={6} className="text-center py-10">
-                    <MdPerson size={40} className="text-gray-200 mx-auto mb-2" />
-                    <p className="text-gray-400">No customers found</p>
-                  </td>
+                  <th className="px-4 py-3 text-left">Customer</th>
+                  <th className="px-4 py-3 text-left">Phone</th>
+                  <th className="px-4 py-3 text-left">Email</th>
+                  <th className="px-4 py-3 text-left">Loyalty Points</th>
+                  <th className="px-4 py-3 text-left">Credit</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
                 </tr>
-              ) : filteredCustomers.map(customer => (
-                <tr key={customer.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
-                        {customer.name.charAt(0).toUpperCase()}
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-10">
+                      <MdPerson size={40} className="text-gray-200 mx-auto mb-2" />
+                      <p className="text-gray-400">No customers found</p>
+                    </td>
+                  </tr>
+                ) : filteredCustomers.map(customer => (
+                  <tr key={customer.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
+                          {customer.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-gray-800">{customer.name}</span>
                       </div>
-                      <span className="font-medium text-gray-800">{customer.name}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{customer.phone || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500">{customer.email || '-'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <MdStar size={14} className="text-yellow-500" />
+                        <span className="font-medium text-gray-800">{customer.loyalty_points || 0}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      Rs. {Number(customer.credit_balance || 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button onClick={() => setHistoryModal(customer)} title="Purchase History" className="text-purple-500 hover:text-purple-700">
+                          <MdHistory size={18} />
+                        </button>
+                        <button onClick={() => { setEditCustomer(customer); setCustomerModal(true) }} className="text-blue-600 hover:text-blue-800">
+                          <MdEdit size={18} />
+                        </button>
+                        <button onClick={() => handleDelete(customer.id)} className="text-red-500 hover:text-red-700">
+                          <MdDelete size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {filteredCustomers.length === 0 ? (
+              <div className="text-center py-10">
+                <MdPerson size={40} className="text-gray-200 mx-auto mb-2" />
+                <p className="text-gray-400">No customers found</p>
+              </div>
+            ) : filteredCustomers.map(customer => (
+              <div key={customer.id} className="p-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
+                    {customer.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-800 truncate">{customer.name}</p>
+                    <p className="text-xs text-gray-500">{customer.phone || '—'}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-yellow-600 flex items-center gap-0.5">
+                        <MdStar size={11} /> {customer.loyalty_points || 0}
+                      </span>
+                      <span className="text-xs text-green-600">
+                        Rs. {Number(customer.credit_balance || 0).toLocaleString()}
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{customer.phone || '-'}</td>
-                  <td className="px-4 py-3 text-gray-500">{customer.email || '-'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <MdStar size={14} className="text-yellow-500" />
-                      <span className="font-medium text-gray-800">{customer.loyalty_points || 0}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    Rs. {Number(customer.credit_balance || 0).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setHistoryModal(customer)}
-                        title="Purchase History"
-                        className="text-purple-500 hover:text-purple-700"
-                      >
-                        <MdHistory size={18} />
-                      </button>
-                      <button
-                        onClick={() => { setEditCustomer(customer); setCustomerModal(true) }}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <MdEdit size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(customer.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <MdDelete size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <button onClick={() => setHistoryModal(customer)} className="text-purple-500 p-1.5">
+                    <MdHistory size={20} />
+                  </button>
+                  <button onClick={() => { setEditCustomer(customer); setCustomerModal(true) }} className="text-blue-600 p-1.5">
+                    <MdEdit size={20} />
+                  </button>
+                  <button onClick={() => handleDelete(customer.id)} className="text-red-500 p-1.5">
+                    <MdDelete size={20} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </div>
 

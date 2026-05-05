@@ -3,19 +3,26 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
-    Supplier, Warehouse, Product, StockBatch,
+    Supplier, Warehouse, Category, Product, StockBatch,
     PurchaseOrder, PurchaseOrderItem,
     StockMovement, InventoryAuditLog, LowStockNotification
 )
 
 
-# ─────────────────────────────────────────
-# USER (nested use ke liye)
-# ─────────────────────────────────────────
 class UserMinimalSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
         fields = ['id', 'username', 'first_name', 'last_name']
+
+
+# ─────────────────────────────────────────
+# CATEGORY
+# ─────────────────────────────────────────
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Category
+        fields = ['id', 'name', 'icon', 'description', 'is_active', 'created_at']
+        read_only_fields = ['created_at']
 
 
 # ─────────────────────────────────────────
@@ -33,7 +40,6 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 
 class SupplierMinimalSerializer(serializers.ModelSerializer):
-    """Nested use ke liye — sirf zaruri fields"""
     class Meta:
         model  = Supplier
         fields = ['id', 'name', 'phone', 'email']
@@ -52,19 +58,27 @@ class WarehouseSerializer(serializers.ModelSerializer):
 # PRODUCT
 # ─────────────────────────────────────────
 class ProductSerializer(serializers.ModelSerializer):
-    supplier_detail = SupplierMinimalSerializer(source='supplier', read_only=True)
-    is_low_stock    = serializers.BooleanField(read_only=True)
-    is_out_of_stock = serializers.BooleanField(read_only=True)
-    profit_margin   = serializers.FloatField(read_only=True)
+    supplier_detail  = SupplierMinimalSerializer(source='supplier', read_only=True)
+    category_detail  = CategorySerializer(source='category', read_only=True)
+    is_low_stock     = serializers.BooleanField(read_only=True)
+    is_out_of_stock  = serializers.BooleanField(read_only=True)
+    profit_margin    = serializers.FloatField(read_only=True)
+    discounted_price = serializers.FloatField(read_only=True)
 
     class Meta:
         model  = Product
         fields = [
-            'id', 'name', 'sku', 'barcode', 'category',
-            'supplier', 'supplier_detail', 'description',
+            'id', 'name', 'sku', 'barcode', 'description', 'image',
+            # category & supplier
+            'category', 'category_detail',
+            'supplier', 'supplier_detail',
+            # pricing
             'cost_price', 'retail_price', 'wholesale_price',
-            'stock_quantity', 'low_stock_threshold', 'reorder_quantity',
-            'is_active',
+            'tax_rate', 'discount', 'discounted_price',
+            # stock
+            'stock_quantity', 'low_stock_threshold', 'reorder_quantity', 'unit',
+            # flags
+            'is_active', 'is_featured',
             # computed
             'is_low_stock', 'is_out_of_stock', 'profit_margin',
             'created_at', 'updated_at',
@@ -72,7 +86,6 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['sku', 'created_at', 'updated_at']
 
     def validate(self, attrs):
-        # Cost price retail se zyada nahi honi chahiye
         cost   = attrs.get('cost_price',   getattr(self.instance, 'cost_price', 0))
         retail = attrs.get('retail_price', getattr(self.instance, 'retail_price', 0))
         if retail > 0 and cost > retail:
@@ -83,10 +96,9 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ProductMinimalSerializer(serializers.ModelSerializer):
-    """PO items / movement mein nested use"""
     class Meta:
         model  = Product
-        fields = ['id', 'name', 'sku', 'barcode', 'stock_quantity', 'retail_price']
+        fields = ['id', 'name', 'sku', 'barcode', 'stock_quantity', 'retail_price', 'wholesale_price', 'cost_price']
 
 
 # ─────────────────────────────────────────
@@ -112,9 +124,7 @@ class StockBatchSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────
 class PurchaseOrderItemSerializer(serializers.ModelSerializer):
     product_detail    = ProductMinimalSerializer(source='product', read_only=True)
-    total_price       = serializers.DecimalField(
-                            max_digits=12, decimal_places=2, read_only=True
-                        )
+    total_price       = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     pending_qty       = serializers.IntegerField(read_only=True)
     is_fully_received = serializers.BooleanField(read_only=True)
 
@@ -124,7 +134,6 @@ class PurchaseOrderItemSerializer(serializers.ModelSerializer):
             'id', 'product', 'product_detail',
             'quantity_ordered', 'quantity_received',
             'unit_cost',
-            # computed
             'total_price', 'pending_qty', 'is_fully_received',
         ]
         read_only_fields = ['quantity_received']
@@ -141,7 +150,6 @@ class PurchaseOrderItemSerializer(serializers.ModelSerializer):
 
 
 class PurchaseOrderItemReceiveSerializer(serializers.Serializer):
-    """PO receive endpoint ke liye input"""
     item_id           = serializers.IntegerField()
     quantity_received = serializers.IntegerField(min_value=1)
 
@@ -150,11 +158,11 @@ class PurchaseOrderItemReceiveSerializer(serializers.Serializer):
 # PURCHASE ORDER
 # ─────────────────────────────────────────
 class PurchaseOrderSerializer(serializers.ModelSerializer):
-    items          = PurchaseOrderItemSerializer(many=True)
-    supplier_detail  = SupplierMinimalSerializer(source='supplier', read_only=True)
-    warehouse_detail = WarehouseSerializer(source='warehouse', read_only=True)
+    items             = PurchaseOrderItemSerializer(many=True)
+    supplier_detail   = SupplierMinimalSerializer(source='supplier', read_only=True)
+    warehouse_detail  = WarehouseSerializer(source='warehouse', read_only=True)
     created_by_detail = UserMinimalSerializer(source='created_by', read_only=True)
-    status_display   = serializers.CharField(source='get_status_display', read_only=True)
+    status_display    = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model  = PurchaseOrder
@@ -168,10 +176,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             'created_by', 'created_by_detail',
             'created_at', 'updated_at',
         ]
-        read_only_fields = [
-            'total_amount', 'created_by',
-            'created_at', 'updated_at',
-        ]
+        read_only_fields = ['total_amount', 'created_by', 'created_at', 'updated_at']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
@@ -183,23 +188,17 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
-
-        # PO fields update
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-
-        # Items update (agar bheje gaye hain)
         if items_data is not None:
             instance.items.all().delete()
             for item_data in items_data:
                 PurchaseOrderItem.objects.create(purchase_order=instance, **item_data)
             instance.recalculate_total()
-
         return instance
 
     def validate(self, attrs):
-        # Received ya cancelled order edit nahi ho sakta
         if self.instance and self.instance.status in ['received', 'cancelled']:
             raise serializers.ValidationError(
                 f"'{self.instance.get_status_display()}' order edit nahi ho sakta."
@@ -208,7 +207,6 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 
 
 class PurchaseOrderReceiveSerializer(serializers.Serializer):
-    """POST /purchase-orders/{id}/receive/ ke liye"""
     items = PurchaseOrderItemReceiveSerializer(many=True)
 
 
@@ -216,12 +214,10 @@ class PurchaseOrderReceiveSerializer(serializers.Serializer):
 # STOCK MOVEMENT
 # ─────────────────────────────────────────
 class StockMovementSerializer(serializers.ModelSerializer):
-    product_detail   = ProductMinimalSerializer(source='product', read_only=True)
-    warehouse_detail = WarehouseSerializer(source='warehouse', read_only=True)
-    created_by_detail = UserMinimalSerializer(source='created_by', read_only=True)
-    movement_type_display = serializers.CharField(
-        source='get_movement_type_display', read_only=True
-    )
+    product_detail        = ProductMinimalSerializer(source='product', read_only=True)
+    warehouse_detail      = WarehouseSerializer(source='warehouse', read_only=True)
+    created_by_detail     = UserMinimalSerializer(source='created_by', read_only=True)
+    movement_type_display = serializers.CharField(source='get_movement_type_display', read_only=True)
 
     class Meta:
         model  = StockMovement
@@ -234,17 +230,13 @@ class StockMovementSerializer(serializers.ModelSerializer):
             'created_by', 'created_by_detail',
             'created_at',
         ]
-        read_only_fields = [
-            'stock_before', 'stock_after',
-            'created_by', 'created_at',
-        ]
+        read_only_fields = ['stock_before', 'stock_after', 'created_by', 'created_at']
 
 
 class ManualAdjustmentSerializer(serializers.Serializer):
-    """POST /stock-movements/adjust/ ke liye"""
     product_id   = serializers.IntegerField()
     warehouse_id = serializers.IntegerField()
-    quantity     = serializers.IntegerField()   # positive = add, negative = deduct
+    quantity     = serializers.IntegerField()
     reason       = serializers.CharField(max_length=500, required=False, default='')
 
     def validate_quantity(self, value):
@@ -254,7 +246,7 @@ class ManualAdjustmentSerializer(serializers.Serializer):
 
 
 # ─────────────────────────────────────────
-# INVENTORY AUDIT LOG
+# AUDIT LOG
 # ─────────────────────────────────────────
 class InventoryAuditLogSerializer(serializers.ModelSerializer):
     user_detail    = UserMinimalSerializer(source='user', read_only=True)
@@ -269,7 +261,7 @@ class InventoryAuditLogSerializer(serializers.ModelSerializer):
             'old_value', 'new_value',
             'ip_address', 'timestamp',
         ]
-        read_only_fields = fields   # Audit log kabhi edit nahi hota
+        read_only_fields = fields
 
 
 # ─────────────────────────────────────────

@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from .models import OnlineOrder, OnlineOrderItem, Cart
+from .models import OnlineOrder, OnlineOrderItem, Cart, Coupon, ProductReview, FlashSale
 from products.models import Product
+from django.utils import timezone
 
 
 class OnlineOrderItemSerializer(serializers.ModelSerializer):
@@ -28,6 +29,7 @@ class PlaceOrderSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
     items = serializers.ListField(child=serializers.DictField())
     shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, default=0)
+    coupon_code = serializers.CharField(required=False, allow_blank=True)  # ← new
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -37,4 +39,26 @@ class CartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cart
+        fields = '__all__'
+
+
+class CouponSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Coupon
+        fields = '__all__'
+
+
+class ProductReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductReview
+        fields = '__all__'
+
+
+class FlashSaleSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_image = serializers.ImageField(source='product.image', read_only=True)
+    original_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = FlashSale
         fields = '__all__'

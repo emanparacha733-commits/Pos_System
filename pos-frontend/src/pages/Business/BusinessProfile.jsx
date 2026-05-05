@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import API from "../../utils/api";
 import Layout from "../../components/Layout";
-import { MdBusiness, MdPhone, MdEmail, MdLocationOn, MdLanguage, MdAttachMoney, MdEdit, MdSave, MdCancel, MdDelete } from "react-icons/md";
+import {
+  MdBusiness, MdPhone, MdEmail, MdLocationOn,
+  MdLanguage, MdAttachMoney, MdEdit, MdSave,
+  MdCancel, MdDelete
+} from "react-icons/md";
 
 export default function BusinessProfile() {
   const [business, setBusiness] = useState(null);
@@ -81,8 +85,8 @@ export default function BusinessProfile() {
     <Layout>
       <div className="space-y-6">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* ── Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-blue-600 text-white p-3 rounded-xl">
               <MdBusiness size={28} />
@@ -95,25 +99,25 @@ export default function BusinessProfile() {
 
           {/* Buttons */}
           {!editMode ? (
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <button onClick={handleDelete}
-                className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2.5 rounded-xl hover:bg-red-100 transition font-medium">
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-50 text-red-600 px-4 py-2.5 rounded-xl hover:bg-red-100 transition font-medium">
                 <MdDelete size={18} /> Delete
               </button>
               <button onClick={() => setEditMode(true)}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition font-medium">
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition font-medium">
                 <MdEdit size={18} /> Edit Profile
               </button>
             </div>
           ) : (
             <button onClick={handleCancel}
-              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition font-medium">
+              className="flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition font-medium w-full sm:w-auto">
               <MdCancel size={18} /> Cancel
             </button>
           )}
         </div>
 
-        {/* Alert Message */}
+        {/* ── Alert Message ── */}
         {message && (
           <div className={`p-4 rounded-xl flex items-center gap-3 ${
             messageType === "success"
@@ -125,10 +129,11 @@ export default function BusinessProfile() {
           </div>
         )}
 
+        {/* ── Main Grid ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Left Card */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 space-y-5">
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-5 sm:p-6 space-y-5">
             <h2 className="text-lg font-semibold text-gray-800 border-b pb-3">Basic Information</h2>
 
             {/* Business Name */}
@@ -152,11 +157,13 @@ export default function BusinessProfile() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
               {editMode ? (
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {["retail", "restaurant", "pharmacy", "salon", "generic"].map((type) => (
                     <button key={type} onClick={() => setForm({ ...form, type })}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium capitalize transition ${
-                        form.type === type ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      className={`py-2 px-2 rounded-lg text-xs sm:text-sm font-medium capitalize transition ${
+                        form.type === type
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}>
                       {type}
                     </button>
@@ -168,7 +175,7 @@ export default function BusinessProfile() {
             </div>
 
             {/* Phone & Email */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                 {editMode ? (
@@ -182,7 +189,6 @@ export default function BusinessProfile() {
                   <Field value={form.phone} icon={<MdPhone size={18} />} />
                 )}
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 {editMode ? (
@@ -231,7 +237,7 @@ export default function BusinessProfile() {
 
           {/* Right Card */}
           <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm p-6 space-y-5">
+            <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6 space-y-5">
               <h2 className="text-lg font-semibold text-gray-800 border-b pb-3">Financial Settings</h2>
 
               <div>

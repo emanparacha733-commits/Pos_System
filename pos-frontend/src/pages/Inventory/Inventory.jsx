@@ -5,120 +5,89 @@ import {
   MdAdd, MdEdit, MdDelete, MdSearch,
   MdWarning, MdInventory, MdPeople, MdLocalShipping,
   MdHistory, MdClose, MdRefresh, MdTrendingUp,
-  MdCheckCircle, MdBlock, MdArrowDownward, MdBuild,
+  MdCheckCircle, MdBlock, MdArrowDownward, MdBuild
 } from 'react-icons/md'
 
-// ─── Constants ───────────────────────────────────────────────────
 const TABS = [
-  { key: 'products',  label: 'Products',       icon: MdInventory },
-  { key: 'suppliers', label: 'Suppliers',       icon: MdPeople },
-  { key: 'purchase',  label: 'Purchase Orders', icon: MdLocalShipping },
-  { key: 'movements', label: 'Stock Movements', icon: MdHistory },
+  { key: 'products',  label: 'Products',   icon: MdInventory },
+  { key: 'suppliers', label: 'Suppliers',   icon: MdPeople },
+  { key: 'purchase',  label: 'PO',          icon: MdLocalShipping },
+  { key: 'movements', label: 'Movements',   icon: MdHistory },
 ]
 
-const CATEGORY_CHOICES = [
-  { value: 'book',       label: 'Book' },
-  { value: 'stationery', label: 'Stationery' },
-  { value: 'other',      label: 'Other' },
+const UNIT_CHOICES = [
+  { value: 'piece', label: 'Piece' },
+  { value: 'kg',    label: 'Kilogram' },
+  { value: 'gram',  label: 'Gram' },
+  { value: 'liter', label: 'Liter' },
+  { value: 'meter', label: 'Meter' },
+  { value: 'box',   label: 'Box' },
+  { value: 'dozen', label: 'Dozen' },
 ]
 
 const PO_STATUS_COLORS = {
-  draft:     'bg-gray-100 text-gray-500',
+  draft:     'bg-gray-100 text-gray-600',
   sent:      'bg-blue-100 text-blue-700',
   partial:   'bg-yellow-100 text-yellow-700',
   received:  'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-500',
+  cancelled: 'bg-red-100 text-red-600',
 }
 
-const MOVEMENT_COLORS = {
-  purchase:   'text-emerald-600 bg-emerald-50',
-  sale:       'text-red-500 bg-red-50',
-  return_in:  'text-blue-600 bg-blue-50',
-  return_out: 'text-orange-500 bg-orange-50',
-  damage:     'text-red-800 bg-red-100',
-  adjustment: 'text-purple-600 bg-purple-50',
-  transfer:   'text-gray-600 bg-gray-100',
+const MOVEMENT_TYPE_COLORS = {
+  purchase:   'text-green-600',
+  sale:       'text-red-600',
+  return_in:  'text-blue-600',
+  return_out: 'text-orange-600',
+  damage:     'text-red-800',
+  adjustment: 'text-purple-600',
+  transfer:   'text-gray-600',
 }
 
-// ─── Design tokens matching POS blue theme ────────────────────────
-const BLUE = '#1a56db'
-
-// ─── Toast ───────────────────────────────────────────────────────
 const Toast = ({ msg, type, onDone }) => {
   useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t) }, [onDone])
   return (
-    <div style={{
-      position: 'fixed', bottom: 24, right: 24, zIndex: 100,
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '12px 20px', borderRadius: 14,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-      fontSize: 13, fontWeight: 600,
-      background: type === 'success' ? '#059669' : '#dc2626',
-      color: '#fff',
-    }}>
+    <div className={`fixed bottom-6 right-4 left-4 sm:left-auto sm:right-6 z-[100] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-sm font-medium animate-slide-up
+      ${type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
       {type === 'success' ? <MdCheckCircle size={18} /> : <MdBlock size={18} />}
       {msg}
     </div>
   )
 }
 
-// ─── Modal ────────────────────────────────────────────────────────
 const Modal = ({ title, onClose, children, footer, wide = false }) => (
-  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-    <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: wide ? 640 : 440, maxHeight: '92vh' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #f3f4f6' }}>
-        <h2 style={{ fontWeight: 700, color: '#111827', fontSize: 15, margin: 0 }}>{title}</h2>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4, borderRadius: 8, display: 'flex' }}>
+  <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+    <div className={`bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col w-full ${wide ? 'sm:max-w-2xl' : 'sm:max-w-md'} max-h-[92vh]`}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+        <h2 className="font-bold text-gray-900 text-base tracking-tight">{title}</h2>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition rounded-xl p-1 hover:bg-gray-100">
           <MdClose size={20} />
         </button>
       </div>
-      <div style={{ overflowY: 'auto', flex: 1, padding: '16px 20px' }}>{children}</div>
-      {footer && <div style={{ padding: '12px 20px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: 10 }}>{footer}</div>}
+      <div className="overflow-y-auto flex-1 px-5 py-4">{children}</div>
+      {footer && <div className="px-5 py-4 border-t border-gray-100 flex gap-3 shrink-0">{footer}</div>}
     </div>
   </div>
 )
 
-// ─── Btn ──────────────────────────────────────────────────────────
-const Btn = ({ children, onClick, variant = 'primary', disabled, style = {} }) => {
-  const base = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', border: 'none', opacity: disabled ? 0.5 : 1, transition: 'all .15s' }
+const Btn = ({ children, onClick, variant = 'primary', disabled, className = '', type = 'button' }) => {
+  const base = 'flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed'
   const variants = {
-    primary: { background: BLUE, color: '#fff' },
-    ghost:   { background: '#f3f4f6', color: '#374151' },
-    outline: { background: '#fff', color: BLUE, border: `2px solid ${BLUE}` },
-    danger:  { background: '#dc2626', color: '#fff' },
+    primary: 'bg-slate-900 text-white hover:bg-slate-700',
+    ghost:   'bg-gray-100 text-gray-700 hover:bg-gray-200',
+    danger:  'bg-red-500 text-white hover:bg-red-600',
+    outline: 'border-2 border-slate-900 text-slate-900 hover:bg-slate-50',
   }
-  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>{children}</button>
+  return <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]} ${className}`}>{children}</button>
 }
 
-// ─── Field ────────────────────────────────────────────────────────
 const Field = ({ label, children }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-    <label style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
+  <div className="space-y-1.5">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</label>
     {children}
   </div>
 )
 
-const iCls = { width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 13, outline: 'none', background: '#f9fafb', boxSizing: 'border-box', fontFamily: 'inherit' }
-
-// ─── Stat Card ───────────────────────────────────────────────────
-const StatCard = ({ label, value, icon: Icon, accent, onClick }) => (
-  <div onClick={onClick} style={{
-    background: accent === 'red' ? '#fff1f2' : '#fff',
-    border: `1px solid ${accent === 'red' ? '#fecdd3' : '#e5e7eb'}`,
-    borderRadius: 12, padding: '16px 20px',
-    display: 'flex', alignItems: 'center', gap: 14,
-    cursor: onClick ? 'pointer' : 'default',
-    boxShadow: '0 1px 3px rgba(0,0,0,.06)',
-  }}>
-    <div style={{ background: accent === 'red' ? '#fee2e2' : '#dbeafe', borderRadius: 10, padding: 10, display: 'flex' }}>
-      <Icon size={22} style={{ color: accent === 'red' ? '#dc2626' : BLUE }} />
-    </div>
-    <div>
-      <p style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>{label}</p>
-      <p style={{ fontSize: 24, fontWeight: 800, color: accent === 'red' ? '#dc2626' : '#111827', margin: '2px 0 0' }}>{value}</p>
-    </div>
-  </div>
-)
+const inputCls = 'w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-gray-50 focus:bg-white transition'
 
 // ─── Stock Adjust Modal ───────────────────────────────────────────
 const StockAdjustModal = ({ product, warehouses, onClose, onSuccess }) => {
@@ -132,38 +101,43 @@ const StockAdjustModal = ({ product, warehouses, onClose, onSuccess }) => {
     setLoading(true)
     try {
       await API.post('/inventory/stock-movements/adjust/', {
-        product_id: product.id, warehouse_id: wh, quantity: Number(qty), reason,
+        product_id: product.id, warehouse_id: wh,
+        quantity: Number(qty), reason,
       })
-      onSuccess('Stock adjusted!'); onClose()
+      onSuccess('Stock adjusted successfully!')
+      onClose()
     } catch (err) {
-      onSuccess(err.response?.data?.error || 'Error!', 'error')
+      onSuccess(err.response?.data?.error || 'Error adjusting stock!', 'error')
     } finally { setLoading(false) }
   }
 
   return (
-    <Modal title="Stock Adjustment" onClose={onClose}
+    <Modal title="Manual Stock Adjustment" onClose={onClose}
       footer={<>
-        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
-        <Btn onClick={handleSubmit} disabled={loading || !qty} style={{ flex: 1 }}>{loading ? 'Saving…' : 'Confirm'}</Btn>
+        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
+        <Btn onClick={handleSubmit} disabled={loading || !qty} className="flex-1">
+          {loading ? 'Saving…' : 'Confirm Adjustment'}
+        </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ background: '#eff6ff', borderRadius: 10, padding: 14, border: '1px solid #bfdbfe' }}>
-          <p style={{ fontWeight: 700, color: '#111827', margin: 0 }}>{product.name}</p>
-          <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0' }}>
-            SKU: <span style={{ fontFamily: 'monospace', color: BLUE }}>{product.sku}</span> &nbsp;·&nbsp;
-            Stock: <span style={{ fontWeight: 700, color: BLUE }}>{product.stock_quantity}</span>
+      <div className="space-y-4">
+        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+          <p className="font-bold text-gray-900">{product.name}</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            SKU: <span className="font-mono text-slate-700">{product.sku || '—'}</span> · Stock: <span className="font-bold text-slate-800">{product.stock_qty}</span>
           </p>
         </div>
-        <Field label="Warehouse">
-          <select value={wh} onChange={e => setWh(e.target.value)} style={iCls}>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-        </Field>
-        <Field label="Quantity (+ add, − deduct)">
-          <input type="number" value={qty} onChange={e => setQty(e.target.value)} placeholder="e.g. 10 or -5" style={iCls} />
+        {warehouses.length > 0 && (
+          <Field label="Warehouse">
+            <select value={wh} onChange={e => setWh(e.target.value)} className={inputCls}>
+              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </Field>
+        )}
+        <Field label="Quantity (+ to add, − to deduct)">
+          <input type="number" value={qty} onChange={e => setQty(e.target.value)} placeholder="e.g. 10 or -5" className={inputCls} />
         </Field>
         <Field label="Reason">
-          <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="Damage, count correction…" style={iCls} />
+          <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="Damage, count correction, etc." className={inputCls} />
         </Field>
       </div>
     </Modal>
@@ -171,85 +145,105 @@ const StockAdjustModal = ({ product, warehouses, onClose, onSuccess }) => {
 }
 
 // ─── Product Modal ────────────────────────────────────────────────
-const ProductModal = ({ editProduct, suppliers, onClose, onSuccess }) => {
+const ProductModal = ({ editProduct, categories, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
-    name: editProduct?.name || '', category: editProduct?.category || 'book',
-    supplier: editProduct?.supplier || '', description: editProduct?.description || '',
-    cost_price: editProduct?.cost_price || '', retail_price: editProduct?.retail_price || '',
-    wholesale_price: editProduct?.wholesale_price || '', stock_quantity: editProduct?.stock_quantity || 0,
-    low_stock_threshold: editProduct?.low_stock_threshold || 10, reorder_quantity: editProduct?.reorder_quantity || 50,
-    barcode: editProduct?.barcode || '', is_active: editProduct?.is_active ?? true,
+    name: editProduct?.name || '', category: editProduct?.category || '',
+    description: editProduct?.description || '', price: editProduct?.price || '',
+    cost_price: editProduct?.cost_price || '', tax_rate: editProduct?.tax_rate || 0,
+    discount: editProduct?.discount || 0, stock_qty: editProduct?.stock_qty || 0,
+    low_stock_alert: editProduct?.low_stock_alert || 5, unit: editProduct?.unit || 'piece',
+    barcode: editProduct?.barcode || '', sku: editProduct?.sku || '',
+    is_active: editProduct?.is_active ?? true, is_featured: editProduct?.is_featured ?? false,
   })
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const handleSubmit = async () => {
-    if (!form.name || !form.retail_price) return
+    if (!form.name || !form.price) return
     setLoading(true)
     try {
-      const payload = { ...form, supplier: form.supplier || null }
-      if (editProduct) { await API.put(`/inventory/products/${editProduct.id}/`, payload) }
-      else { await API.post('/inventory/products/', payload) }
-      onSuccess(editProduct ? 'Product updated!' : 'Product added!'); onClose()
+      const payload = { ...form, category: form.category || null, barcode: form.barcode || null, sku: form.sku || null }
+      if (editProduct) {
+        await API.put(`/products/products/${editProduct.id}/`, payload)
+      } else {
+        await API.post('/products/products/', payload)
+      }
+      onSuccess(editProduct ? 'Product updated!' : 'Product added!')
+      onClose()
     } catch (err) {
-      onSuccess(err.response?.data ? JSON.stringify(err.response.data) : 'Error!', 'error')
+      onSuccess('Error: ' + JSON.stringify(err.response?.data), 'error')
     } finally { setLoading(false) }
   }
 
   return (
     <Modal title={editProduct ? 'Edit Product' : 'Add Product'} onClose={onClose} wide
       footer={<>
-        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
-        <Btn onClick={handleSubmit} disabled={loading || !form.name || !form.retail_price} style={{ flex: 1 }}>
-          {loading ? 'Saving…' : editProduct ? 'Update' : 'Add Product'}
+        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
+        <Btn onClick={handleSubmit} disabled={loading || !form.name || !form.price} className="flex-1">
+          {loading ? 'Saving…' : editProduct ? 'Update Product' : 'Add Product'}
         </Btn>
       </>}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1 / -1' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="col-span-1 sm:col-span-2">
           <Field label="Product Name *">
-            <input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Oxford English Dictionary" style={iCls} />
+            <input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Oxford English Dictionary" className={inputCls} />
           </Field>
         </div>
         <Field label="Category">
-          <select value={form.category} onChange={e => f('category', e.target.value)} style={iCls}>
-            {CATEGORY_CHOICES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          <select value={form.category} onChange={e => f('category', e.target.value)} className={inputCls}>
+            <option value="">— No Category —</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </Field>
-        <Field label="Supplier">
-          <select value={form.supplier} onChange={e => f('supplier', e.target.value)} style={iCls}>
-            <option value="">— No Supplier —</option>
-            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        <Field label="Unit">
+          <select value={form.unit} onChange={e => f('unit', e.target.value)} className={inputCls}>
+            {UNIT_CHOICES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
         </Field>
-        <Field label="Retail Price *">
-          <input type="number" value={form.retail_price} onChange={e => f('retail_price', e.target.value)} placeholder="0.00" style={iCls} />
+        <Field label="Sale Price *">
+          <input type="number" value={form.price} onChange={e => f('price', e.target.value)} placeholder="0.00" className={inputCls} />
         </Field>
         <Field label="Cost Price">
-          <input type="number" value={form.cost_price} onChange={e => f('cost_price', e.target.value)} placeholder="0.00" style={iCls} />
+          <input type="number" value={form.cost_price} onChange={e => f('cost_price', e.target.value)} placeholder="0.00" className={inputCls} />
         </Field>
-        <Field label="Wholesale Price">
-          <input type="number" value={form.wholesale_price} onChange={e => f('wholesale_price', e.target.value)} placeholder="0.00" style={iCls} />
+        <Field label="Tax Rate (%)">
+          <input type="number" value={form.tax_rate} onChange={e => f('tax_rate', e.target.value)} placeholder="0" className={inputCls} />
+        </Field>
+        <Field label="Discount (%)">
+          <input type="number" value={form.discount} onChange={e => f('discount', e.target.value)} placeholder="0" className={inputCls} />
+        </Field>
+        <Field label="Stock Quantity">
+          <input type="number" value={form.stock_qty} onChange={e => f('stock_qty', e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Low Stock Alert">
+          <input type="number" value={form.low_stock_alert} onChange={e => f('low_stock_alert', e.target.value)} className={inputCls} />
         </Field>
         <Field label="Barcode">
-          <input value={form.barcode} onChange={e => f('barcode', e.target.value)} placeholder="Scan or enter" style={iCls} />
+          <input value={form.barcode} onChange={e => f('barcode', e.target.value)} placeholder="Scan or enter manually" className={inputCls} />
         </Field>
-        <Field label="Low Stock Threshold">
-          <input type="number" value={form.low_stock_threshold} onChange={e => f('low_stock_threshold', e.target.value)} style={iCls} />
+        <Field label="SKU">
+          <input value={form.sku} onChange={e => f('sku', e.target.value)} placeholder="e.g. BOOK-001" className={inputCls} />
         </Field>
-        <Field label="Reorder Quantity">
-          <input type="number" value={form.reorder_quantity} onChange={e => f('reorder_quantity', e.target.value)} style={iCls} />
-        </Field>
-        <div style={{ gridColumn: '1 / -1' }}>
+        <div className="col-span-1 sm:col-span-2">
           <Field label="Description">
-            <textarea value={form.description} onChange={e => f('description', e.target.value)} rows={2} placeholder="Optional…" style={{ ...iCls, resize: 'vertical' }} />
+            <textarea value={form.description} onChange={e => f('description', e.target.value)} rows={2} placeholder="Optional product description" className={inputCls} />
           </Field>
         </div>
-        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button type="button" onClick={() => f('is_active', !form.is_active)}
-            style={{ position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: form.is_active ? BLUE : '#d1d5db', transition: 'background .2s' }}>
-            <span style={{ position: 'absolute', top: 2, left: form.is_active ? 22 : 2, width: 20, height: 20, background: '#fff', borderRadius: '50%', boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .2s' }} />
-          </button>
-          <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>Active Product</span>
+        <div className="col-span-1 sm:col-span-2 flex items-center gap-6 pt-1">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => f('is_active', !form.is_active)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${form.is_active ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.is_active ? 'translate-x-5' : ''}`} />
+            </button>
+            <span className="text-sm font-medium text-gray-700">Active</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => f('is_featured', !form.is_featured)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${form.is_featured ? 'bg-blue-500' : 'bg-gray-300'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.is_featured ? 'translate-x-5' : ''}`} />
+            </button>
+            <span className="text-sm font-medium text-gray-700">Featured</span>
+          </div>
         </div>
       </div>
     </Modal>
@@ -261,7 +255,8 @@ const SupplierModal = ({ editSupplier, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     name: editSupplier?.name || '', contact_person: editSupplier?.contact_person || '',
-    phone: editSupplier?.phone || '', email: editSupplier?.email || '', address: editSupplier?.address || '',
+    phone: editSupplier?.phone || '', email: editSupplier?.email || '',
+    address: editSupplier?.address || '',
   })
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -269,38 +264,42 @@ const SupplierModal = ({ editSupplier, onClose, onSuccess }) => {
     if (!form.name) return
     setLoading(true)
     try {
-      if (editSupplier) { await API.put(`/inventory/suppliers/${editSupplier.id}/`, form) }
-      else { await API.post('/inventory/suppliers/', form) }
-      onSuccess(editSupplier ? 'Supplier updated!' : 'Supplier added!'); onClose()
-    } catch { onSuccess('Error!', 'error') }
+      if (editSupplier) {
+        await API.put(`/inventory/suppliers/${editSupplier.id}/`, form)
+      } else {
+        await API.post('/inventory/suppliers/', form)
+      }
+      onSuccess(editSupplier ? 'Supplier updated!' : 'Supplier added!')
+      onClose()
+    } catch { onSuccess('Error saving supplier!', 'error') }
     finally { setLoading(false) }
   }
 
   return (
     <Modal title={editSupplier ? 'Edit Supplier' : 'Add Supplier'} onClose={onClose}
       footer={<>
-        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
-        <Btn onClick={handleSubmit} disabled={loading || !form.name} style={{ flex: 1 }}>
+        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
+        <Btn onClick={handleSubmit} disabled={loading || !form.name} className="flex-1">
           {loading ? 'Saving…' : editSupplier ? 'Update' : 'Add Supplier'}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="space-y-4">
         <Field label="Supplier Name *">
-          <input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Al-Faisal Publishers" style={iCls} />
+          <input value={form.name} onChange={e => f('name', e.target.value)} placeholder="e.g. Al-Faisal Publishers" className={inputCls} />
         </Field>
         <Field label="Contact Person">
-          <input value={form.contact_person} onChange={e => f('contact_person', e.target.value)} placeholder="Rep name" style={iCls} />
+          <input value={form.contact_person} onChange={e => f('contact_person', e.target.value)} placeholder="Name of the rep" className={inputCls} />
         </Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Phone">
-            <input value={form.phone} onChange={e => f('phone', e.target.value)} placeholder="03xx-xxxxxxx" style={iCls} />
+            <input value={form.phone} onChange={e => f('phone', e.target.value)} placeholder="03xx-xxxxxxx" className={inputCls} />
           </Field>
           <Field label="Email">
-            <input type="email" value={form.email} onChange={e => f('email', e.target.value)} placeholder="email@example.com" style={iCls} />
+            <input type="email" value={form.email} onChange={e => f('email', e.target.value)} placeholder="supplier@email.com" className={inputCls} />
           </Field>
         </div>
         <Field label="Address">
-          <textarea value={form.address} onChange={e => f('address', e.target.value)} rows={2} placeholder="Full address" style={{ ...iCls, resize: 'vertical' }} />
+          <textarea value={form.address} onChange={e => f('address', e.target.value)} rows={2} placeholder="Full address" className={inputCls} />
         </Field>
       </div>
     </Modal>
@@ -313,8 +312,8 @@ const POModal = ({ editPO, suppliers, warehouses, products, onClose, onSuccess }
   const [form, setForm] = useState({
     supplier: editPO?.supplier || '', warehouse: editPO?.warehouse || warehouses[0]?.id || '',
     expected_date: editPO?.expected_date || '', notes: editPO?.notes || '',
-    items: editPO?.items?.map(i => ({ product: i.product, quantity_ordered: i.quantity_ordered, unit_cost: i.unit_cost }))
-           || [{ product: '', quantity_ordered: 1, unit_cost: '' }],
+    items: editPO?.items?.map(i => ({ id: i.id, product: i.product, quantity_ordered: i.quantity_ordered, unit_cost: i.unit_cost }))
+      || [{ product: '', quantity_ordered: 1, unit_cost: '' }],
   })
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -327,7 +326,8 @@ const POModal = ({ editPO, suppliers, warehouses, products, onClose, onSuccess }
     }
     f('items', items)
   }
-
+  const addItem    = () => f('items', [...form.items, { product: '', quantity_ordered: 1, unit_cost: '' }])
+  const removeItem = i  => f('items', form.items.filter((_, idx) => idx !== i))
   const total = form.items.reduce((s, i) => s + (Number(i.quantity_ordered) * Number(i.unit_cost) || 0), 0)
 
   const handleSubmit = async () => {
@@ -337,69 +337,76 @@ const POModal = ({ editPO, suppliers, warehouses, products, onClose, onSuccess }
     setLoading(true)
     try {
       const payload = { ...form, items: validItems }
-      if (editPO) { await API.put(`/inventory/purchase-orders/${editPO.id}/`, payload) }
-      else { await API.post('/inventory/purchase-orders/', payload) }
-      onSuccess(editPO ? 'PO updated!' : 'PO created!'); onClose()
+      if (editPO) {
+        await API.put(`/inventory/purchase-orders/${editPO.id}/`, payload)
+      } else {
+        await API.post('/inventory/purchase-orders/', payload)
+      }
+      onSuccess(editPO ? 'Purchase Order updated!' : 'Purchase Order created!')
+      onClose()
     } catch (err) {
-      onSuccess(err.response?.data?.error || 'Error!', 'error')
+      onSuccess(err.response?.data?.error || 'Error saving PO!', 'error')
     } finally { setLoading(false) }
   }
 
   return (
     <Modal title={editPO ? 'Edit Purchase Order' : 'New Purchase Order'} onClose={onClose} wide
       footer={<>
-        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
-        <Btn onClick={handleSubmit} disabled={loading} style={{ flex: 1 }}>{loading ? 'Saving…' : editPO ? 'Update PO' : 'Create PO'}</Btn>
+        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
+        <Btn onClick={handleSubmit} disabled={loading} className="flex-1">
+          {loading ? 'Saving…' : editPO ? 'Update PO' : 'Create PO'}
+        </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Supplier *">
-            <select value={form.supplier} onChange={e => f('supplier', e.target.value)} style={iCls}>
+            <select value={form.supplier} onChange={e => f('supplier', e.target.value)} className={inputCls}>
               <option value="">Select Supplier</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </Field>
           <Field label="Warehouse *">
-            <select value={form.warehouse} onChange={e => f('warehouse', e.target.value)} style={iCls}>
+            <select value={form.warehouse} onChange={e => f('warehouse', e.target.value)} className={inputCls}>
               {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </Field>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Expected Date">
-            <input type="date" value={form.expected_date} onChange={e => f('expected_date', e.target.value)} style={iCls} />
+            <input type="date" value={form.expected_date} onChange={e => f('expected_date', e.target.value)} className={inputCls} />
           </Field>
           <Field label="Notes">
-            <input value={form.notes} onChange={e => f('notes', e.target.value)} placeholder="Optional" style={iCls} />
+            <input value={form.notes} onChange={e => f('notes', e.target.value)} placeholder="Optional notes" className={inputCls} />
           </Field>
         </div>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Order Items</span>
-            <Btn variant="outline" onClick={() => f('items', [...form.items, { product: '', quantity_ordered: 1, unit_cost: '' }])} style={{ padding: '5px 12px', fontSize: 12 }}>
-              <MdAdd size={13} /> Add Item
-            </Btn>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Items</span>
+            <Btn variant="outline" onClick={addItem} className="!py-1 !px-3 !text-xs"><MdAdd size={14} /> Add Item</Btn>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="space-y-2">
             {form.items.map((item, idx) => (
-              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px 32px', gap: 8, alignItems: 'center', background: '#f9fafb', borderRadius: 10, padding: 8 }}>
-                <select value={item.product} onChange={e => setItem(idx, 'product', e.target.value)} style={{ ...iCls, background: '#fff' }}>
-                  <option value="">Select Product</option>
+              <div key={idx} className="grid grid-cols-[1fr_70px_80px_28px] gap-1.5 items-center bg-gray-50 rounded-xl p-2">
+                <select value={item.product} onChange={e => setItem(idx, 'product', e.target.value)}
+                  className="px-2 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-400">
+                  <option value="">Product</option>
                   {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
-                <input type="number" min="1" value={item.quantity_ordered} onChange={e => setItem(idx, 'quantity_ordered', e.target.value)}
-                  placeholder="Qty" style={{ ...iCls, background: '#fff', textAlign: 'center' }} />
-                <input type="number" value={item.unit_cost} onChange={e => setItem(idx, 'unit_cost', e.target.value)}
-                  placeholder="Cost" style={{ ...iCls, background: '#fff' }} />
-                <button onClick={() => f('items', form.items.filter((_, i) => i !== idx))} disabled={form.items.length === 1}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', opacity: form.items.length === 1 ? 0.3 : 1 }}>
+                <input type="number" min="1" value={item.quantity_ordered}
+                  onChange={e => setItem(idx, 'quantity_ordered', e.target.value)}
+                  placeholder="Qty" className="px-2 py-2 border border-gray-200 rounded-lg text-sm text-center bg-white focus:outline-none" />
+                <input type="number" value={item.unit_cost}
+                  onChange={e => setItem(idx, 'unit_cost', e.target.value)}
+                  placeholder="Cost" className="px-2 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none" />
+                <button onClick={() => removeItem(idx)} disabled={form.items.length === 1}
+                  className="text-red-400 hover:text-red-600 disabled:opacity-30 transition">
                   <MdClose size={16} />
                 </button>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 10, textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#111827' }}>
-            Total: <span style={{ color: BLUE, fontSize: 15 }}>Rs. {total.toLocaleString()}</span>
+          <div className="mt-3 text-right text-sm font-bold text-gray-800">
+            Total: <span className="text-slate-900 text-base">Rs. {total.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -413,56 +420,77 @@ const ReceivePOModal = ({ po, onClose, onSuccess }) => {
   const [qtys, setQtys] = useState(() =>
     Object.fromEntries(po.items.filter(i => !i.is_fully_received).map(i => [i.id, i.pending_qty]))
   )
-  const pendingItems = po.items.filter(i => !i.is_fully_received)
 
   const handleReceive = async () => {
-    const items = Object.entries(qtys).filter(([, q]) => Number(q) > 0)
+    const items = Object.entries(qtys)
+      .filter(([, q]) => Number(q) > 0)
       .map(([item_id, quantity_received]) => ({ item_id: Number(item_id), quantity_received: Number(quantity_received) }))
     if (!items.length) return
     setLoading(true)
     try {
       await API.post(`/inventory/purchase-orders/${po.id}/receive/`, { items })
-      onSuccess('Stock received!'); onClose()
+      onSuccess('Stock received successfully!')
+      onClose()
     } catch (err) {
-      onSuccess(err.response?.data?.error || 'Error!', 'error')
+      onSuccess(err.response?.data?.error || 'Error receiving stock!', 'error')
     } finally { setLoading(false) }
   }
+
+  const pendingItems = po.items.filter(i => !i.is_fully_received)
 
   return (
     <Modal title={`Receive Stock — PO-${String(po.id).padStart(4, '0')}`} onClose={onClose} wide
       footer={<>
-        <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
-        <Btn onClick={handleReceive} disabled={loading} style={{ flex: 1 }}>{loading ? 'Processing…' : 'Confirm Receipt'}</Btn>
+        <Btn variant="ghost" onClick={onClose} className="flex-1">Cancel</Btn>
+        <Btn onClick={handleReceive} disabled={loading} className="flex-1">
+          {loading ? 'Processing…' : 'Confirm Receipt'}
+        </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ background: '#eff6ff', borderRadius: 10, padding: 12, border: '1px solid #bfdbfe', fontSize: 13 }}>
-          Supplier: <strong style={{ color: '#1e40af' }}>{po.supplier_detail?.name}</strong>
-        </div>
-        {pendingItems.length === 0
-          ? <p style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af' }}>All items already received.</p>
-          : pendingItems.map(item => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#f9fafb', borderRadius: 10, padding: 12 }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: 0 }}>{item.product_detail?.name}</p>
-                <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>
-                  Ordered: {item.quantity_ordered} · Received: {item.quantity_received} ·
-                  Pending: <strong style={{ color: BLUE }}>{item.pending_qty}</strong>
-                </p>
-              </div>
-              <input type="number" min="0" max={item.pending_qty} value={qtys[item.id] ?? 0}
-                onChange={e => setQtys(p => ({ ...p, [item.id]: e.target.value }))}
-                style={{ ...iCls, width: 72, textAlign: 'center' }} />
+      <div className="space-y-3">
+        <div className="text-sm text-gray-500">Supplier: <strong className="text-gray-800">{po.supplier_detail?.name}</strong></div>
+        {pendingItems.length === 0 ? (
+          <p className="text-center py-6 text-gray-400">All items already received.</p>
+        ) : pendingItems.map(item => (
+          <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-800">{item.product_detail?.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Ordered: {item.quantity_ordered} · Received: {item.quantity_received} · Pending: <strong>{item.pending_qty}</strong>
+              </p>
             </div>
-          ))}
+            <input type="number" min="0" max={item.pending_qty}
+              value={qtys[item.id] ?? 0}
+              onChange={e => setQtys(p => ({ ...p, [item.id]: e.target.value }))}
+              className="w-20 px-3 py-2 border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-slate-400" />
+          </div>
+        ))}
       </div>
     </Modal>
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────
+// ─── Stat Card ────────────────────────────────────────────────────
+const StatCard = ({ label, value, sub, accent, onClick, icon: Icon }) => (
+  <div onClick={onClick}
+    className={`bg-white rounded-2xl shadow-sm border p-4 flex items-center gap-3 transition
+      ${onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : ''}
+      ${accent === 'red' ? 'border-red-200 bg-red-50' : 'border-gray-100'}`}>
+    <div className={`rounded-2xl p-2.5 ${accent === 'red' ? 'bg-red-100' : 'bg-slate-100'}`}>
+      <Icon size={20} className={accent === 'red' ? 'text-red-600' : 'text-slate-700'} />
+    </div>
+    <div>
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
+      <p className={`text-xl font-black mt-0.5 ${accent === 'red' ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
+      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  </div>
+)
+
+// ─── Main Inventory Component ─────────────────────────────────────
 const Inventory = () => {
   const [activeTab, setActiveTab]   = useState('products')
   const [products, setProducts]     = useState([])
+  const [categories, setCategories] = useState([])
   const [suppliers, setSuppliers]   = useState([])
   const [warehouses, setWarehouses] = useState([])
   const [purchaseOrders, setPOs]    = useState([])
@@ -486,192 +514,150 @@ const Inventory = () => {
   useEffect(() => { fetchAll() }, [])
   useEffect(() => { if (activeTab === 'movements') fetchMovements() }, [activeTab])
 
-  // ── ALL APIS SAME AS WORKING VERSION ─────────────────────────────
-  const fetchAll       = () => { fetchProducts(); fetchSuppliers(); fetchWarehouses(); fetchPOs() }
-  const fetchProducts  = async () => { try { const r = await API.get('/inventory/products/');        setProducts(r.data?.results ?? r.data) } catch {} }
-  const fetchSuppliers = async () => { try { const r = await API.get('/inventory/suppliers/');       setSuppliers(r.data?.results ?? r.data) } catch {} }
-  const fetchWarehouses= async () => { try { const r = await API.get('/inventory/warehouses/');      setWarehouses(r.data?.results ?? r.data) } catch {} }
-  const fetchPOs       = async () => { try { const r = await API.get('/inventory/purchase-orders/'); setPOs(r.data?.results ?? r.data) } catch {} }
-  const fetchMovements = async () => { try { const r = await API.get('/inventory/stock-movements/'); setMovements(r.data?.results ?? r.data) } catch {} }
+  const fetchAll       = () => { fetchProducts(); fetchCategories(); fetchSuppliers(); fetchWarehouses(); fetchPOs() }
+  const fetchProducts  = async () => { try { const r = await API.get('/products/products/');         setProducts(r.data.results ?? r.data)  } catch {} }
+  const fetchCategories= async () => { try { const r = await API.get('/products/categories/');       setCategories(r.data.results ?? r.data)} catch {} }
+  const fetchSuppliers = async () => { try { const r = await API.get('/inventory/suppliers/');       setSuppliers(r.data.results ?? r.data) } catch {} }
+  const fetchWarehouses= async () => { try { const r = await API.get('/inventory/warehouses/');      setWarehouses(r.data.results ?? r.data)} catch {} }
+  const fetchPOs       = async () => { try { const r = await API.get('/inventory/purchase-orders/'); setPOs(r.data.results ?? r.data)       } catch {} }
+  const fetchMovements = async () => { try { const r = await API.get('/inventory/stock-movements/'); setMovements(r.data.results ?? r.data) } catch {} }
 
-  const deleteProduct  = async id => {
-    if (!window.confirm('Delete this product?')) return
-    try { await API.delete(`/inventory/products/${id}/`); fetchProducts(); notify('Product deleted!') }
-    catch { notify('Error deleting!', 'error') }
-  }
-  const deleteSupplier = async id => {
-    if (!window.confirm('Delete this supplier?')) return
-    try { await API.delete(`/inventory/suppliers/${id}/`); fetchSuppliers(); notify('Supplier deleted!') }
-    catch { notify('Error deleting!', 'error') }
-  }
-  const cancelPO = async id => {
-    if (!window.confirm('Cancel this PO?')) return
-    try { await API.post(`/inventory/purchase-orders/${id}/cancel/`); fetchPOs(); notify('PO cancelled') }
-    catch (err) { notify(err.response?.data?.error || 'Cannot cancel!', 'error') }
-  }
-
-  const filteredProducts = products.filter(p => {
-    const ms = p.name?.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase())
-    const ml = lowOnly ? p.is_low_stock : true
-    const mc = catFilter ? p.category === catFilter : true
-    return ms && ml && mc
-  })
+  const deleteProduct  = async id => { if (!window.confirm('Delete this product?'))  return; try { await API.delete(`/products/products/${id}/`);      fetchProducts();  notify('Product deleted!')  } catch { notify('Error!', 'error') } }
+  const deleteSupplier = async id => { if (!window.confirm('Delete this supplier?')) return; try { await API.delete(`/inventory/suppliers/${id}/`);     fetchSuppliers(); notify('Supplier deleted!') } catch { notify('Error!', 'error') } }
+  const cancelPO       = async id => { if (!window.confirm('Cancel this PO?'))       return; try { await API.post(`/inventory/purchase-orders/${id}/cancel/`); fetchPOs(); notify('PO cancelled') } catch (err) { notify(err.response?.data?.error || 'Cannot cancel!', 'error') } }
 
   const lowStockCount   = products.filter(p => p.is_low_stock).length
-  const outOfStockCount = products.filter(p => p.is_out_of_stock).length
+  const outOfStockCount = products.filter(p => p.stock_qty === 0).length
 
-  // ── Shared table styles ───────────────────────────────────────
-  const thStyle = (right) => ({
-    padding: '10px 16px', textAlign: right ? 'right' : 'left',
-    fontSize: 11, fontWeight: 600, color: '#6b7280',
-    textTransform: 'uppercase', letterSpacing: '0.05em',
-    background: '#f9fafb', borderBottom: '1px solid #e5e7eb',
-    whiteSpace: 'nowrap',
-  })
-  const tdStyle = (right, extra = {}) => ({
-    padding: '12px 16px', textAlign: right ? 'right' : 'left',
-    fontSize: 13, color: '#374151',
-    borderBottom: '1px solid #f3f4f6', ...extra,
+  const filteredProducts = products.filter(p => {
+    const ms = p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase())
+    const ml = lowOnly ? p.is_low_stock : true
+    const mc = catFilter ? String(p.category) === catFilter : true
+    return ms && ml && mc
   })
 
   return (
     <Layout>
+      <style>{`
+        @keyframes slide-up { from { transform:translateY(24px);opacity:0 } to { transform:translateY(0);opacity:1 } }
+        .animate-slide-up { animation: slide-up .25s ease-out }
+      `}</style>
+
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div className="space-y-4 pb-10">
 
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        {/* ── Header ── */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#111827', margin: 0 }}>Inventory</h1>
-            <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>Products · Suppliers · Purchase Orders · Movements</p>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Inventory</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Products · Suppliers · Purchase Orders · Movements</p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={fetchAll} style={{ width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff', cursor: 'pointer', color: '#6b7280' }}>
-              <MdRefresh size={18} />
-            </button>
-            {activeTab !== 'movements' && (
-              <button onClick={() => {
-                if (activeTab === 'products')  { setEditProduct(null);  setProductModal(true) }
-                if (activeTab === 'suppliers') { setEditSupplier(null); setSupplierModal(true) }
-                if (activeTab === 'purchase')  { setEditPO(null);       setPOModal(true) }
-              }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: BLUE, color: '#fff', padding: '9px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
-                <MdAdd size={18} />
-                Add {activeTab === 'products' ? 'Product' : activeTab === 'suppliers' ? 'Supplier' : 'Purchase Order'}
-              </button>
-            )}
+          <div className="flex gap-2">
+            <Btn variant="ghost" onClick={fetchAll}><MdRefresh size={18} /></Btn>
+            <Btn className="flex-1 sm:flex-none" onClick={() => {
+              if (activeTab === 'products')  { setEditProduct(null);  setProductModal(true)  }
+              if (activeTab === 'suppliers') { setEditSupplier(null); setSupplierModal(true) }
+              if (activeTab === 'purchase')  { setEditPO(null);       setPOModal(true)       }
+            }}>
+              <MdAdd size={18} />
+              Add {activeTab === 'products' ? 'Product' : activeTab === 'suppliers' ? 'Supplier' : activeTab === 'purchase' ? 'PO' : ''}
+            </Btn>
           </div>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-          <StatCard label="Total Products" value={products.length}  icon={MdInventory} />
-          <StatCard label="Low Stock"      value={lowStockCount}    icon={MdWarning}   accent={lowStockCount > 0 ? 'red' : ''} onClick={() => { setActiveTab('products'); setLowOnly(true) }} />
-          <StatCard label="Out of Stock"   value={outOfStockCount}  icon={MdBlock}     accent={outOfStockCount > 0 ? 'red' : ''} />
-          <StatCard label="Suppliers"      value={suppliers.length} icon={MdPeople} />
+        {/* ── Stat Cards ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard label="Products"    value={products.length}  icon={MdInventory} />
+          <StatCard label="Low Stock"   value={lowStockCount}    icon={MdWarning}  accent={lowStockCount > 0 ? 'red' : ''}   onClick={() => { setActiveTab('products'); setLowOnly(true) }} />
+          <StatCard label="Out of Stock" value={outOfStockCount} icon={MdBlock}    accent={outOfStockCount > 0 ? 'red' : ''} />
+          <StatCard label="Suppliers"   value={suppliers.length} icon={MdPeople} />
         </div>
 
-        {/* Tabs — blue active pill matching POS */}
-        <div style={{ display: 'flex', gap: 4, background: '#e5e7eb', borderRadius: 12, padding: 5, width: 'fit-content' }}>
+        {/* ── Tabs ── */}
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl overflow-x-auto">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => { setActiveTab(key); setSearch('') }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 16px', borderRadius: 9, fontSize: 13, fontWeight: 600,
-                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .15s',
-                background: activeTab === key ? BLUE : 'transparent',
-                color:      activeTab === key ? '#fff' : '#6b7280',
-                boxShadow:  activeTab === key ? '0 2px 6px rgba(26,86,219,.3)' : 'none',
-              }}>
-              <Icon size={15} /> {label}
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap flex-shrink-0
+                ${activeTab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-400 hover:text-gray-700'}`}>
+              <Icon size={14} /> {label}
             </button>
           ))}
         </div>
 
-        {/* ── PRODUCTS TAB ─────────────────────────────────────── */}
+        {/* ── Products Tab ── */}
         {activeTab === 'products' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Search bar */}
-            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-                <MdSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} size={18} />
-                <input placeholder="Search by name or SKU…" value={search} onChange={e => setSearch(e.target.value)}
-                  style={{ ...iCls, paddingLeft: 36 }} />
+          <div className="space-y-3">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-wrap gap-3">
+              <div className="relative flex-1 min-w-0">
+                <MdSearch className="absolute left-3 top-3 text-gray-400" size={18} />
+                <input placeholder="Search name or SKU…" value={search} onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" />
               </div>
-              <select value={catFilter} onChange={e => setCatFilter(e.target.value)} style={{ ...iCls, width: 'auto' }}>
+              <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
+                className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
                 <option value="">All Categories</option>
-                {CATEGORY_CHOICES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                {categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
               </select>
-              <button onClick={() => setLowOnly(!lowOnly)} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                border: `2px solid ${lowOnly ? '#f87171' : '#e5e7eb'}`,
-                background: lowOnly ? '#fff1f2' : '#fff', color: lowOnly ? '#dc2626' : '#6b7280',
-              }}>
-                <MdWarning size={16} /> Low Stock {lowOnly && `(${lowStockCount})`}
+              <button onClick={() => setLowOnly(!lowOnly)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border-2 transition
+                  ${lowOnly ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                <MdWarning size={16} /> Low {lowOnly && `(${lowStockCount})`}
               </button>
             </div>
 
-            {/* Table */}
-            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
+            {/* Desktop Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
                     <tr>
-                      <th style={thStyle()}>Product</th>
-                      <th style={thStyle()}>Category</th>
-                      <th style={thStyle()}>Supplier</th>
-                      <th style={thStyle(true)}>Retail</th>
-                      <th style={thStyle(true)}>Cost</th>
-                      <th style={thStyle(true)}>Margin</th>
-                      <th style={{ ...thStyle(), textAlign: 'center' }}>Stock</th>
-                      <th style={{ ...thStyle(), textAlign: 'center' }}>Status</th>
-                      <th style={{ ...thStyle(), textAlign: 'center' }}>Actions</th>
+                      <th className="px-4 py-3 text-left">Product</th>
+                      <th className="px-4 py-3 text-left">Category</th>
+                      <th className="px-4 py-3 text-right">Price</th>
+                      <th className="px-4 py-3 text-right">Cost</th>
+                      <th className="px-4 py-3 text-right">Margin</th>
+                      <th className="px-4 py-3 text-center">Stock</th>
+                      <th className="px-4 py-3 text-center">Status</th>
+                      <th className="px-4 py-3 text-center">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-50">
                     {filteredProducts.length === 0 ? (
-                      <tr><td colSpan={9} style={{ textAlign: 'center', padding: '48px 0', color: '#d1d5db' }}>
-                        <MdInventory size={36} style={{ display: 'block', margin: '0 auto 8px' }} />
-                        No products found
-                      </td></tr>
+                      <tr><td colSpan={8} className="text-center py-12 text-gray-300">No products found</td></tr>
                     ) : filteredProducts.map(p => (
-                      <tr key={p.id} style={{ transition: 'background .1s' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                        onMouseLeave={e => e.currentTarget.style.background = ''}>
-                        <td style={tdStyle()}>
-                          <p style={{ fontWeight: 600, color: '#111827', margin: 0 }}>{p.name}</p>
-                          <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0', fontFamily: 'monospace' }}>{p.sku}</p>
+                      <tr key={p.id} className="hover:bg-gray-50 transition">
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-gray-900">{p.name}</p>
+                          <p className="text-xs text-gray-400 font-mono">{p.sku || '—'}</p>
                         </td>
-                        <td style={tdStyle()}>
-                          <span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>{p.category}</span>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium capitalize">{p.category_name || '—'}</span>
                         </td>
-                        <td style={tdStyle(false, { fontSize: 12, color: '#6b7280' })}>{p.supplier_detail?.name || '—'}</td>
-                        <td style={tdStyle(true, { fontWeight: 700, color: '#111827' })}>Rs. {Number(p.retail_price).toLocaleString()}</td>
-                        <td style={tdStyle(true, { fontSize: 12, color: '#9ca3af' })}>Rs. {Number(p.cost_price).toLocaleString()}</td>
-                        <td style={tdStyle(true)}>
-                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, color: '#059669', fontSize: 12, fontWeight: 700 }}>
-                            <MdTrendingUp size={13} />{p.profit_margin}%
+                        <td className="px-4 py-3 text-right font-semibold text-gray-800">Rs. {Number(p.price || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-gray-400 text-xs">Rs. {Number(p.cost_price || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="flex items-center justify-end gap-1 text-emerald-600 text-xs font-semibold">
+                            <MdTrendingUp size={13} />{p.profit_margin || 0}%
                           </span>
                         </td>
-                        <td style={{ ...tdStyle(), textAlign: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                            <span style={{ fontWeight: 800, fontSize: 15, color: p.is_out_of_stock ? '#dc2626' : p.is_low_stock ? '#d97706' : '#059669' }}>
-                              {p.stock_quantity}
-                            </span>
-                            {p.is_low_stock && !p.is_out_of_stock && <MdWarning size={13} style={{ color: '#d97706' }} />}
-                            {p.is_out_of_stock && <MdBlock size={13} style={{ color: '#dc2626' }} />}
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className={`font-bold text-base ${p.stock_qty === 0 ? 'text-red-600' : p.is_low_stock ? 'text-amber-600' : 'text-emerald-600'}`}>{p.stock_qty}</span>
+                            {p.is_low_stock && p.stock_qty > 0 && <MdWarning size={13} className="text-amber-500" />}
+                            {p.stock_qty === 0 && <MdBlock size={13} className="text-red-500" />}
                           </div>
                         </td>
-                        <td style={{ ...tdStyle(), textAlign: 'center' }}>
-                          <span style={{ background: p.is_active ? '#d1fae5' : '#f3f4f6', color: p.is_active ? '#065f46' : '#6b7280', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                             {p.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td style={{ ...tdStyle(), textAlign: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                            <button onClick={() => setAdjustModal(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', padding: 6, borderRadius: 8 }}><MdBuild size={15} /></button>
-                            <button onClick={() => { setEditProduct(p); setProductModal(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, padding: 6, borderRadius: 8 }}><MdEdit size={15} /></button>
-                            <button onClick={() => deleteProduct(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 6, borderRadius: 8 }}><MdDelete size={15} /></button>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => setAdjustModal(p)} className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition"><MdBuild size={16} /></button>
+                            <button onClick={() => { setEditProduct(p); setProductModal(true) }} className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"><MdEdit size={16} /></button>
+                            <button onClick={() => deleteProduct(p.id)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition"><MdDelete size={16} /></button>
                           </div>
                         </td>
                       </tr>
@@ -679,185 +665,249 @@ const Inventory = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Cards — Products */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {filteredProducts.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300">No products found</div>
+                ) : filteredProducts.map(p => (
+                  <div key={p.id} className="p-4 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-gray-900 truncate">{p.name}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {p.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 font-mono mt-0.5">{p.sku || '—'}</p>
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <span className="text-sm font-bold text-gray-800">Rs. {Number(p.price || 0).toLocaleString()}</span>
+                        <span className={`text-sm font-bold ${p.stock_qty === 0 ? 'text-red-600' : p.is_low_stock ? 'text-amber-600' : 'text-emerald-600'}`}>
+                          Stock: {p.stock_qty}
+                          {p.is_low_stock && p.stock_qty > 0 && ' ⚠️'}
+                          {p.stock_qty === 0 && ' 🚫'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={() => setAdjustModal(p)} className="p-1.5 text-purple-600"><MdBuild size={18} /></button>
+                      <button onClick={() => { setEditProduct(p); setProductModal(true) }} className="p-1.5 text-blue-600"><MdEdit size={18} /></button>
+                      <button onClick={() => deleteProduct(p.id)} className="p-1.5 text-red-500"><MdDelete size={18} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* ── SUPPLIERS TAB ─────────────────────────────────────── */}
+        {/* ── Suppliers Tab ── */}
         {activeTab === 'suppliers' && (
-          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={thStyle()}>Supplier</th>
-                  <th style={thStyle()}>Contact</th>
-                  <th style={thStyle()}>Phone</th>
-                  <th style={thStyle()}>Email</th>
-                  <th style={thStyle()}>Address</th>
-                  <th style={{ ...thStyle(), textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {suppliers.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: '48px 0', color: '#d1d5db' }}>
-                    <MdPeople size={36} style={{ display: 'block', margin: '0 auto 8px' }} />No suppliers added yet
-                  </td></tr>
-                ) : suppliers.map(s => (
-                  <tr key={s.id}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}>
-                    <td style={tdStyle(false, { fontWeight: 600, color: '#111827' })}>{s.name}</td>
-                    <td style={tdStyle(false, { color: '#6b7280' })}>{s.contact_person || '—'}</td>
-                    <td style={tdStyle(false, { color: '#6b7280' })}>{s.phone || '—'}</td>
-                    <td style={tdStyle(false, { color: '#6b7280' })}>{s.email || '—'}</td>
-                    <td style={tdStyle(false, { color: '#9ca3af', fontSize: 12, maxWidth: 160 })}>{s.address || '—'}</td>
-                    <td style={{ ...tdStyle(), textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                        <button onClick={() => { setEditSupplier(s); setSupplierModal(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, padding: 6, borderRadius: 8 }}><MdEdit size={15} /></button>
-                        <button onClick={() => deleteSupplier(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 6, borderRadius: 8 }}><MdDelete size={15} /></button>
-                      </div>
-                    </td>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Desktop */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Supplier</th>
+                    <th className="px-4 py-3 text-left">Contact Person</th>
+                    <th className="px-4 py-3 text-left">Phone</th>
+                    <th className="px-4 py-3 text-left">Email</th>
+                    <th className="px-4 py-3 text-left">Address</th>
+                    <th className="px-4 py-3 text-center">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {suppliers.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center py-12 text-gray-300">No suppliers added yet</td></tr>
+                  ) : suppliers.map(s => (
+                    <tr key={s.id} className="hover:bg-gray-50 transition">
+                      <td className="px-4 py-3 font-semibold text-gray-900">{s.name}</td>
+                      <td className="px-4 py-3 text-gray-500">{s.contact_person || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">{s.phone || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">{s.email || '—'}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs max-w-[180px] truncate">{s.address || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => { setEditSupplier(s); setSupplierModal(true) }} className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"><MdEdit size={16} /></button>
+                          <button onClick={() => deleteSupplier(s.id)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition"><MdDelete size={16} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile Cards — Suppliers */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {suppliers.length === 0 ? (
+                <div className="text-center py-12 text-gray-300">No suppliers added yet</div>
+              ) : suppliers.map(s => (
+                <div key={s.id} className="p-4 flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900">{s.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{s.contact_person || '—'}</p>
+                    <p className="text-xs text-gray-400">{s.phone || '—'} {s.email ? '· ' + s.email : ''}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={() => { setEditSupplier(s); setSupplierModal(true) }} className="p-1.5 text-blue-600"><MdEdit size={18} /></button>
+                    <button onClick={() => deleteSupplier(s.id)} className="p-1.5 text-red-500"><MdDelete size={18} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* ── PURCHASE ORDERS TAB ───────────────────────────────── */}
+        {/* ── Purchase Orders Tab ── */}
         {activeTab === 'purchase' && (
-          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={thStyle()}>PO #</th>
-                  <th style={thStyle()}>Supplier</th>
-                  <th style={thStyle()}>Warehouse</th>
-                  <th style={thStyle()}>Date</th>
-                  <th style={thStyle(true)}>Total</th>
-                  <th style={{ ...thStyle(), textAlign: 'center' }}>Status</th>
-                  <th style={{ ...thStyle(), textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchaseOrders.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '48px 0', color: '#d1d5db' }}>
-                    <MdLocalShipping size={36} style={{ display: 'block', margin: '0 auto 8px' }} />No purchase orders yet
-                  </td></tr>
-                ) : purchaseOrders.map(po => (
-                  <tr key={po.id}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}>
-                    <td style={tdStyle(false, { fontFamily: 'monospace', fontWeight: 700, color: BLUE })}>PO-{String(po.id).padStart(4, '0')}</td>
-                    <td style={tdStyle(false, { fontWeight: 600 })}>{po.supplier_detail?.name || '—'}</td>
-                    <td style={tdStyle(false, { fontSize: 12, color: '#9ca3af' })}>{po.warehouse_detail?.name || '—'}</td>
-                    <td style={tdStyle(false, { fontSize: 12, color: '#9ca3af' })}>{new Date(po.order_date).toLocaleDateString('en-PK')}</td>
-                    <td style={tdStyle(true, { fontWeight: 700 })}>Rs. {Number(po.total_amount).toLocaleString()}</td>
-                    <td style={{ ...tdStyle(), textAlign: 'center' }}>
-                      <span style={{ ...PO_STATUS_COLORS[po.status] && {}, borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}
-                        className={PO_STATUS_COLORS[po.status]}>
-                        {po.status_display}
-                      </span>
-                    </td>
-                    <td style={{ ...tdStyle(), textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                        {!['received', 'cancelled'].includes(po.status) && <>
-                          <button onClick={() => setReceivePO(po)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#059669', padding: 6, borderRadius: 8 }}><MdArrowDownward size={15} /></button>
-                          <button onClick={() => { setEditPO(po); setPOModal(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, padding: 6, borderRadius: 8 }}><MdEdit size={15} /></button>
-                          <button onClick={() => cancelPO(po.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 6, borderRadius: 8 }}><MdBlock size={15} /></button>
-                        </>}
-                        {po.status === 'received' && <span style={{ fontSize: 12, color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><MdCheckCircle size={14} /> Done</span>}
-                        {po.status === 'cancelled' && <span style={{ fontSize: 12, color: '#9ca3af' }}>Cancelled</span>}
-                      </div>
-                    </td>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Desktop */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 text-left">PO #</th>
+                    <th className="px-4 py-3 text-left">Supplier</th>
+                    <th className="px-4 py-3 text-left">Warehouse</th>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-center">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {purchaseOrders.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-12 text-gray-300">No purchase orders yet</td></tr>
+                  ) : purchaseOrders.map(po => (
+                    <tr key={po.id} className="hover:bg-gray-50 transition">
+                      <td className="px-4 py-3 font-mono font-semibold text-slate-800">PO-{String(po.id).padStart(4, '0')}</td>
+                      <td className="px-4 py-3 font-medium text-gray-800">{po.supplier_detail?.name}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">{po.warehouse_detail?.name}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">{new Date(po.order_date).toLocaleDateString('en-PK')}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-gray-800">Rs. {Number(po.total_amount).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${PO_STATUS_COLORS[po.status]}`}>{po.status_display}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          {!['received', 'cancelled'].includes(po.status) && (<>
+                            <button onClick={() => setReceivePO(po)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition"><MdArrowDownward size={16} /></button>
+                            <button onClick={() => { setEditPO(po); setPOModal(true) }} className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"><MdEdit size={16} /></button>
+                            <button onClick={() => cancelPO(po.id)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition"><MdBlock size={16} /></button>
+                          </>)}
+                          {po.status === 'received' && (
+                            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><MdCheckCircle size={14} /> Done</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile Cards — POs */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {purchaseOrders.length === 0 ? (
+                <div className="text-center py-12 text-gray-300">No purchase orders yet</div>
+              ) : purchaseOrders.map(po => (
+                <div key={po.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div>
+                      <p className="font-mono font-semibold text-slate-800">PO-{String(po.id).padStart(4, '0')}</p>
+                      <p className="text-sm text-gray-700">{po.supplier_detail?.name}</p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${PO_STATUS_COLORS[po.status]}`}>{po.status_display}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-400">{new Date(po.order_date).toLocaleDateString('en-PK')}</p>
+                      <p className="text-sm font-bold text-gray-800 mt-0.5">Rs. {Number(po.total_amount).toLocaleString()}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      {!['received', 'cancelled'].includes(po.status) && (<>
+                        <button onClick={() => setReceivePO(po)} className="p-1.5 text-emerald-600"><MdArrowDownward size={18} /></button>
+                        <button onClick={() => { setEditPO(po); setPOModal(true) }} className="p-1.5 text-blue-600"><MdEdit size={18} /></button>
+                        <button onClick={() => cancelPO(po.id)} className="p-1.5 text-red-500"><MdBlock size={18} /></button>
+                      </>)}
+                      {po.status === 'received' && <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 p-1.5"><MdCheckCircle size={16} /> Done</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* ── STOCK MOVEMENTS TAB ───────────────────────────────── */}
+        {/* ── Stock Movements Tab ── */}
         {activeTab === 'movements' && (
-          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={thStyle()}>Product</th>
-                  <th style={thStyle()}>Type</th>
-                  <th style={{ ...thStyle(), textAlign: 'center' }}>Qty</th>
-                  <th style={{ ...thStyle(), textAlign: 'center' }}>Before</th>
-                  <th style={{ ...thStyle(), textAlign: 'center' }}>After</th>
-                  <th style={thStyle()}>Reference</th>
-                  <th style={thStyle()}>By</th>
-                  <th style={thStyle()}>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movements.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', padding: '48px 0', color: '#d1d5db' }}>
-                    <MdHistory size={36} style={{ display: 'block', margin: '0 auto 8px' }} />No movements recorded
-                  </td></tr>
-                ) : movements.map(m => (
-                  <tr key={m.id}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}>
-                    <td style={tdStyle()}>
-                      <p style={{ fontWeight: 600, color: '#111827', margin: 0 }}>{m.product_detail?.name}</p>
-                      <p style={{ fontSize: 11, fontFamily: 'monospace', color: '#9ca3af', margin: '2px 0 0' }}>{m.product_detail?.sku}</p>
-                    </td>
-                    <td style={tdStyle()}>
-                      <span style={{ borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}
-                        className={MOVEMENT_COLORS[m.movement_type]}>
-                        {m.movement_type_display}
-                      </span>
-                    </td>
-                    <td style={{ ...tdStyle(), textAlign: 'center' }}>
-                      <span style={{ fontWeight: 800, color: m.quantity > 0 ? '#059669' : '#dc2626' }}>
-                        {m.quantity > 0 ? '+' : ''}{m.quantity}
-                      </span>
-                    </td>
-                    <td style={{ ...tdStyle(), textAlign: 'center', color: '#9ca3af' }}>{m.stock_before}</td>
-                    <td style={{ ...tdStyle(), textAlign: 'center', fontWeight: 700, color: '#111827' }}>{m.stock_after}</td>
-                    <td style={tdStyle(false, { fontSize: 12, fontFamily: 'monospace', color: '#9ca3af' })}>{m.reference || '—'}</td>
-                    <td style={tdStyle(false, { fontSize: 12, color: '#9ca3af' })}>{m.created_by_detail?.username || '—'}</td>
-                    <td style={tdStyle(false, { fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' })}>
-                      {new Date(m.created_at).toLocaleString('en-PK', { dateStyle: 'short', timeStyle: 'short' })}
-                    </td>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Desktop */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Product</th>
+                    <th className="px-4 py-3 text-left">Type</th>
+                    <th className="px-4 py-3 text-center">Qty</th>
+                    <th className="px-4 py-3 text-center">Before</th>
+                    <th className="px-4 py-3 text-center">After</th>
+                    <th className="px-4 py-3 text-left">Reference</th>
+                    <th className="px-4 py-3 text-left">By</th>
+                    <th className="px-4 py-3 text-left">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {movements.length === 0 ? (
+                    <tr><td colSpan={8} className="text-center py-12 text-gray-300">No movements recorded</td></tr>
+                  ) : movements.map(m => (
+                    <tr key={m.id} className="hover:bg-gray-50 transition">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-800">{m.product_detail?.name}</p>
+                        <p className="text-xs font-mono text-gray-400">{m.product_detail?.sku}</p>
+                      </td>
+                      <td className="px-4 py-3"><span className={`text-xs font-semibold ${MOVEMENT_TYPE_COLORS[m.movement_type] || 'text-gray-600'}`}>{m.movement_type_display}</span></td>
+                      <td className="px-4 py-3 text-center"><span className={`font-bold ${m.quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{m.quantity > 0 ? '+' : ''}{m.quantity}</span></td>
+                      <td className="px-4 py-3 text-center text-gray-400">{m.stock_before}</td>
+                      <td className="px-4 py-3 text-center font-semibold text-gray-700">{m.stock_after}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs font-mono">{m.reference || '—'}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">{m.created_by_detail?.username || '—'}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">{new Date(m.created_at).toLocaleString('en-PK', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile Cards — Movements */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {movements.length === 0 ? (
+                <div className="text-center py-12 text-gray-300">No movements recorded</div>
+              ) : movements.map(m => (
+                <div key={m.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="font-medium text-gray-800">{m.product_detail?.name}</p>
+                    <span className={`text-xs font-bold ${m.quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {m.quantity > 0 ? '+' : ''}{m.quantity}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span className={`font-semibold ${MOVEMENT_TYPE_COLORS[m.movement_type] || 'text-gray-600'}`}>{m.movement_type_display}</span>
+                    <span>{m.stock_before} → <strong className="text-gray-700">{m.stock_after}</strong></span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">{new Date(m.created_at).toLocaleString('en-PK', { dateStyle: 'short', timeStyle: 'short' })} · {m.created_by_detail?.username || '—'}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
       {/* Modals */}
-      {productModal && (
-        <ProductModal editProduct={editProduct} suppliers={suppliers}
-          onClose={() => { setProductModal(false); setEditProduct(null) }}
-          onSuccess={(msg, t) => { notify(msg, t); fetchProducts() }} />
-      )}
-      {adjustModal && warehouses.length > 0 && (
-        <StockAdjustModal product={adjustModal} warehouses={warehouses}
-          onClose={() => setAdjustModal(null)}
-          onSuccess={(msg, t) => { notify(msg, t); fetchProducts(); fetchMovements() }} />
-      )}
-      {supplierModal && (
-        <SupplierModal editSupplier={editSupplier}
-          onClose={() => { setSupplierModal(false); setEditSupplier(null) }}
-          onSuccess={(msg, t) => { notify(msg, t); fetchSuppliers() }} />
-      )}
-      {poModal && (
-        <POModal editPO={editPO} suppliers={suppliers} warehouses={warehouses} products={products}
-          onClose={() => { setPOModal(false); setEditPO(null) }}
-          onSuccess={(msg, t) => { notify(msg, t); fetchPOs() }} />
-      )}
-      {receivePO && (
-        <ReceivePOModal po={receivePO}
-          onClose={() => setReceivePO(null)}
-          onSuccess={(msg, t) => { notify(msg, t); fetchPOs(); fetchProducts(); fetchMovements() }} />
-      )}
+      {productModal  && <ProductModal   editProduct={editProduct}   categories={categories} onClose={() => { setProductModal(false);  setEditProduct(null)  }} onSuccess={(msg, t) => { notify(msg, t); fetchProducts()  }} />}
+      {adjustModal   && <StockAdjustModal product={adjustModal}     warehouses={warehouses} onClose={() => setAdjustModal(null)}                             onSuccess={(msg, t) => { notify(msg, t); fetchProducts(); fetchMovements() }} />}
+      {supplierModal && <SupplierModal  editSupplier={editSupplier}                         onClose={() => { setSupplierModal(false); setEditSupplier(null) }} onSuccess={(msg, t) => { notify(msg, t); fetchSuppliers() }} />}
+      {poModal       && <POModal        editPO={editPO}             suppliers={suppliers} warehouses={warehouses} products={products} onClose={() => { setPOModal(false); setEditPO(null) }} onSuccess={(msg, t) => { notify(msg, t); fetchPOs() }} />}
+      {receivePO     && <ReceivePOModal po={receivePO}                                      onClose={() => setReceivePO(null)}                               onSuccess={(msg, t) => { notify(msg, t); fetchPOs(); fetchProducts(); fetchMovements() }} />}
     </Layout>
   )
 }

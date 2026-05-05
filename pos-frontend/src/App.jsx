@@ -8,7 +8,7 @@ import Customers from './pages/Customers/Customers'
 import Reports from './pages/Reports/Reports'
 import BusinessProfile from './pages/Business/BusinessProfile'
 import Users from './pages/Users/Users'
-import Store from './pages/Store/Home'
+import Store from './pages/Store/Store'
 import Orders from './pages/Orders/Orders'
 
 const ProtectedRoute = ({ children }) => {
